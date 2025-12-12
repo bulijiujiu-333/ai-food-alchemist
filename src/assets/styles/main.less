@@ -1,0 +1,319 @@
+// 主色系 - 美食炼金主题
+@primary-color: #FF6B6B;      // 主红色 - 代表热情与美味
+@secondary-color: #FF8E53;    // 橙色 - 温暖与创意
+@accent-color: #FFD166;       // 金色 - 亮点与成功
+@success-color: #4ECDC4;      // 青色 - 清新与健康
+@background-light: #F9F9F9;   // 背景浅色
+@background-white: #FFFFFF;   // 白色背景
+
+// 渐变 - 用于按钮和卡片
+@primary-gradient: linear-gradient(135deg, @primary-color, @secondary-color);
+@secondary-gradient: linear-gradient(135deg, @success-color, #44A08D);
+@accent-gradient: linear-gradient(135deg, @accent-color, #FFB347);
+
+// 文字颜色
+@text-primary: #333333;       // 主要文字
+@text-secondary: #666666;     // 次要文字  
+@text-light: #999999;         // 浅色文字
+@text-on-primary: #FFFFFF;    // 主色上的文字
+
+// 阴影系统
+@shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+@shadow-md: 0 4px 20px rgba(0, 0, 0, 0.12);
+@shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
+@shadow-xl: 0 15px 40px rgba(0, 0, 0, 0.2);
+
+// 圆角系统
+@radius-sm: 8px;
+@radius-md: 12px;
+@radius-lg: 20px;
+@radius-xl: 30px;
+@radius-full: 9999px;
+
+// 间距系统
+@spacing-xs: 4px;
+@spacing-sm: 8px;
+@spacing-md: 16px;
+@spacing-lg: 24px;
+@spacing-xl: 32px;
+@spacing-xxl: 48px;
+
+// 字体系统
+@font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+@font-size-xs: 12px;
+@font-size-sm: 14px;
+@font-size-md: 16px;
+@font-size-lg: 18px;
+@font-size-xl: 20px;
+@font-size-xxl: 24px;
+@font-size-xxxl: 28px;
+
+// 动画时间
+@transition-fast: 0.15s;
+@transition-normal: 0.3s;
+@transition-slow: 0.5s;
+
+// 响应式断点
+@breakpoint-mobile: 320px;
+@breakpoint-tablet: 768px;
+@breakpoint-desktop: 1024px;
+@breakpoint-wide: 1440px;
+
+// ============================================
+// 重置样式
+// ============================================
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: @font-family;
+  background-color: @background-light;
+  color: @text-primary;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+// 隐藏滚动条但保留功能
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: @radius-sm;
+}
+
+::-webkit-scrollbar-thumb {
+  background: @primary-gradient;
+  border-radius: @radius-sm;
+  
+  &:hover {
+    background: linear-gradient(135deg, darken(@primary-color, 10%), darken(@secondary-color, 10%));
+  }
+}
+
+// ============================================
+// 工具类 - 快速样式
+// ============================================
+
+// 文字工具
+.text-gradient {
+  background: @primary-gradient;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 布局工具
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// 阴影工具
+.shadow-card {
+  box-shadow: @shadow-md;
+  transition: box-shadow @transition-normal;
+  
+  &:hover {
+    box-shadow: @shadow-lg;
+  }
+}
+
+.shadow-button {
+  box-shadow: @shadow-sm;
+  transition: all @transition-normal;
+  
+  &:hover {
+    box-shadow: @shadow-md;
+    transform: translateY(-2px);
+  }
+  
+  &:active {
+    box-shadow: @shadow-sm;
+    transform: translateY(0);
+  }
+}
+
+// 动画工具
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// ============================================
+// 动画定义
+// ============================================
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+// ============================================
+// 响应式工具
+// ============================================
+
+// 移动端优先
+.mobile-only {
+  @media (min-width: @breakpoint-tablet) {
+    display: none !important;
+  }
+}
+
+.tablet-up {
+  display: none;
+  
+  @media (min-width: @breakpoint-tablet) {
+    display: block;
+  }
+}
+
+.desktop-up {
+  display: none;
+  
+  @media (min-width: @breakpoint-desktop) {
+    display: block;
+  }
+}
+
+// 响应式网格
+.responsive-grid {
+  display: grid;
+  gap: @spacing-md;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  
+  @media (min-width: @breakpoint-tablet) {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+}
+
+// 容器
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 @spacing-md;
+  
+  @media (min-width: @breakpoint-tablet) {
+    padding: 0 @spacing-lg;
+  }
+  
+  @media (min-width: @breakpoint-desktop) {
+    padding: 0 @spacing-xl;
+  }
+}
+
+// ============================================
+// 安全区域适配（iPhone X等）
+// ============================================
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
