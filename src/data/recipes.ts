@@ -1,5 +1,5 @@
 // src/data/recipes.ts
-import { Recipe } from '@/types/recipe'
+import type { Recipe } from '@/types/recipe'
 
 // 菜谱数据库
 export const recipes: Recipe[] = [
