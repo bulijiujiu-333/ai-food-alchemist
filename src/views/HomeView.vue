@@ -1,9 +1,9 @@
-<!-- src/views/HomeView.vue -->
+<!-- src/views/HomeView.vue - 最终修复版 -->
 <template>
   <div class="home">
     <h1>🍳 AI美食炼金术师</h1>
 
-    <!-- 顶部导航（如果需要） -->
+    <!-- 顶部导航 -->
     <div class="top-nav">
       <router-link to="/favorites" class="nav-link">
         <span>⭐ 我的收藏</span>
@@ -26,21 +26,33 @@
         </button>
       </div>
 
+      <!-- 加载状态提示 -->
+      <div v-if="loadingIngredients" class="loading-hint">
+        <div class="spinner"></div>
+        <small>正在从魔法食材库中加载...</small>
+      </div>
+
+      <!-- 加载失败提示 -->
+      <div v-if="loadError" class="error-hint">
+        <small>⚠️ 食材库连接失败，使用本地食材列表</small>
+      </div>
+
       <div class="ingredients-grid">
         <button
           v-for="ingredient in availableIngredients"
           :key="ingredient"
           @click="toggleIngredient(ingredient)"
-          :disabled="isLoading"
+          :disabled="isLoading || loadingIngredients"
           :class="[
             'ingredient-tag',
             {
               'selected': isSelected(ingredient),
-              'disabled': isLoading
+              'disabled': isLoading || loadingIngredients
             }
           ]"
         >
           {{ ingredient }}
+          <span v-if="isSelected(ingredient)" class="selected-icon">✓</span>
         </button>
       </div>
     </div>
@@ -50,48 +62,49 @@
       <button
         @click="handleRecommend"
         :disabled="!hasSelectedIngredients || isLoading"
-        :class="['recommend-btn', { 'loading': isLoading }]"
+        :class="['recommend-btn', { 'loading': isLoading, 'pulse-animation': hasSelectedIngredients && !isLoading }]"
       >
-        <span v-if="isLoading">✨ 炼金中...</span>
-        <span v-else>✨ 开始炼金！</span>
+        <span v-if="isLoading">
+          <span class="spinner-small"></span>
+          炼金中...
+        </span>
+        <span v-else>
+          ✨ 开始炼金！
+          <span class="sparkle">✨</span>
+        </span>
       </button>
+      
+      <!-- 提示信息 -->
+      <div v-if="!hasSelectedIngredients" class="hint-text">
+        请先选择至少一种食材
+      </div>
     </div>
 
     <!-- 推荐结果 -->
     <div v-if="currentRecipe" class="result-section">
       <h2>✨ 炼金成果 ✨</h2>
-      <div class="recipe-card">
-        <h3>{{ currentRecipe.displayName || currentRecipe.originalName }}</h3>
-        <p class="description">{{ currentRecipe.description }}</p>
+      
+      <!-- 使用B同学的RecipeCard组件 -->
+      <RecipeCard 
+        :recipe="currentRecipe" 
+        @click="viewDetail(currentRecipe.id)"
+        class="recipe-card-wrapper"
+      />
 
-        <!-- AI生成的故事 -->
-        <div v-if="currentRecipe.story" class="ai-story">
-          <p>「{{ currentRecipe.story }}」</p>
-        </div>
-
-        <div class="ingredients">
-          <strong>所需食材：</strong>
-          <div class="ingredients-list">
-            <span v-for="ing in currentRecipe.ingredients" :key="ing" class="ing-badge">
-              {{ ing }}
-            </span>
-          </div>
-        </div>
-
-        <!-- 风味雷达图提示 -->
-        <div v-if="currentRecipe.flavorProfile" class="flavor-hint">
-          <small>🎯 风味分析数据已就绪，等待雷达图组件</small>
-        </div>
-
-        <div class="actions">
-          <button @click="toggleFavorite(currentRecipe)" class="favorite-btn">
-            {{ isFavorite(currentRecipe.id) ? '❤️ 已收藏' : '🤍 收藏' }}
-          </button>
-          <button @click="viewDetail(currentRecipe.id)" class="detail-btn">
-            📖 查看详情
-          </button>
-        </div>
+      <!-- 收藏提示 -->
+      <div class="favorite-hint" v-if="!isFavorite(currentRecipe.id)">
+        <small>💡 点击收藏按钮保存这个魔法配方</small>
       </div>
+    </div>
+
+    <!-- 推荐结果为空时 -->
+    <div v-if="recommendationError" class="empty-result">
+      <div class="empty-icon">🍳</div>
+      <h3>炼金失败</h3>
+      <p>没有找到匹配的菜谱，试试其他食材组合吧！</p>
+      <button @click="clearAll" class="retry-btn">
+        重新选择食材
+      </button>
     </div>
 
     <!-- 历史记录 -->
@@ -104,7 +117,11 @@
           @click="viewDetail(recipe.id)"
           class="history-item"
         >
-          {{ recipe.displayName || recipe.originalName }}
+          <span class="history-name">{{ recipe.displayName || recipe.originalName }}</span>
+          <span class="history-ingredients">
+            {{ recipe.ingredients.slice(0, 2).join('、') }}...
+          </span>
+          <span class="history-arrow">→</span>
         </div>
       </div>
     </div>
@@ -112,6 +129,7 @@
     <!-- 底部信息 -->
     <div class="footer">
       <p>AI美食炼金术师 · 让每道菜都有魔法 ✨</p>
+      <p class="version">版本 v0.1.0 | A同学 × B同学 × C同学 联合打造</p>
     </div>
   </div>
 </template>
@@ -120,29 +138,56 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
-// 导入B同学的数据
+// ✅ 导入B同学的服务
 import { getAllIngredients } from '@/services/recipeService'
+// ✅ 导入B同学的RecipeCard组件
+import RecipeCard from '@/components/RecipeCard.vue'
 
 const router = useRouter()
 const recipeStore = useRecipeStore()
 
-// 可用食材列表
-const availableIngredients = ref<string[]>([
+// 状态
+const availableIngredients = ref<string[]>([])
+const loadingIngredients = ref(true)
+const loadError = ref(false)
+const recommendationError = ref(false)
+
+// 默认食材列表（备用）
+const defaultIngredients = [
   '鸡蛋', '西红柿', '土豆', '鸡肉', '牛肉',
   '猪肉', '鱼', '豆腐', '米饭', '面条',
   '青椒', '洋葱', '大蒜', '生姜', '香菇',
   '胡萝卜', '西兰花', '黄瓜', '菠菜', '玉米'
-])
+]
 
-// 也可以使用B同学的数据（异步加载）
-onMounted(() => {
-  getAllIngredients().then(ingredients => {
+// 加载B同学的食材数据
+onMounted(async () => {
+  try {
+    loadingIngredients.value = true
+    loadError.value = false
+    
+    // ✅ 调用B同学的API
+    const ingredients = await getAllIngredients()
+    
     if (ingredients && ingredients.length > 0) {
-      availableIngredients.value = ingredients.slice(0, 25) // 限制显示数量
+      // 去重并排序
+      const uniqueIngredients = Array.from(new Set(ingredients))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+        .slice(0, 30) // 限制显示数量
+      
+      availableIngredients.value = uniqueIngredients
+    } else {
+      // 如果返回空数组，使用默认列表
+      throw new Error('食材列表为空')
     }
-  }).catch(() => {
-    // 使用默认列表
-  })
+  } catch (error) {
+    console.warn('加载食材列表失败，使用默认列表:', error)
+    loadError.value = true
+    availableIngredients.value = defaultIngredients
+  } finally {
+    loadingIngredients.value = false
+  }
 })
 
 // 计算属性
@@ -154,14 +199,16 @@ const historyRecipes = computed(() => recipeStore.historyRecipes)
 
 // 方法
 const toggleIngredient = (ingredient: string) => {
-  if (!isLoading.value) {
+  if (!isLoading.value && !loadingIngredients.value) {
     recipeStore.toggleIngredient(ingredient)
+    recommendationError.value = false // 清空错误状态
   }
 }
 
 const clearAll = () => {
   if (!isLoading.value) {
     recipeStore.clearIngredients()
+    recommendationError.value = false
   }
 }
 
@@ -173,21 +220,28 @@ const isFavorite = (recipeId: string) => {
   return recipeStore.isFavorite(recipeId)
 }
 
-const toggleFavorite = (recipe: any) => {
-  recipeStore.toggleFavorite(recipe)
-}
-
 // 核心：调用推荐方法
 const handleRecommend = async () => {
+  if (!hasSelectedIngredients.value || isLoading.value) return
+  
+  recommendationError.value = false
+  
   const recipe = await recipeStore.getRecommendation()
+  
   if (recipe) {
     // 自动滚动到结果区域
     setTimeout(() => {
       const resultSection = document.querySelector('.result-section')
       if (resultSection) {
-        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        resultSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        })
       }
     }, 300)
+  } else {
+    recommendationError.value = true
   }
 }
 
@@ -199,7 +253,7 @@ const viewDetail = (id: string) => {
 <style scoped>
 .home {
   padding: 20px;
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   min-height: 100vh;
 }
@@ -217,293 +271,451 @@ const viewDetail = (id: string) => {
   border: 1px solid #e0e0e0;
   border-radius: 20px;
   transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .nav-link:hover {
-  background: #f5f5f5;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 142, 83, 0.1));
   color: #ff6b6b;
+  border-color: #ff6b6b;
 }
 
 h1 {
   color: #ff6b6b;
   text-align: center;
   margin: 20px 0 40px;
-  font-size: 32px;
+  font-size: 36px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .ingredients-section {
   background: white;
-  border-radius: 20px;
-  padding: 25px;
+  border-radius: 24px;
+  padding: 30px;
   margin-bottom: 30px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  box-shadow: 
+    0 10px 40px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  border: 1px solid rgba(255, 107, 107, 0.1);
 }
 
 .ingredients-section h2 {
-  margin: 0 0 20px 0;
+  margin: 0 0 25px 0;
   color: #333;
-  font-size: 20px;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ingredients-section h2::before {
+  content: '🥬';
+  font-size: 24px;
 }
 
 .selected-count {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   color: #666;
   font-size: 15px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.05), rgba(255, 142, 83, 0.05));
+  border-radius: 15px;
+  border: 1px dashed rgba(255, 107, 107, 0.3);
 }
 
 .clear-btn {
-  padding: 6px 15px;
-  border: 1px solid #ddd;
+  padding: 8px 18px;
   background: white;
-  border-radius: 15px;
+  border: 1px solid #ff6b6b;
+  border-radius: 18px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 500;
+  color: #ff6b6b;
   transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .clear-btn:hover:not(:disabled) {
-  background: #ffebee;
-  color: #d32f2f;
-  border-color: #ffcdd2;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
 }
 
 .clear-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: #f5f5f5;
+  border-color: #ddd;
+  color: #999;
+}
+
+.loading-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(33, 150, 243, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(33, 150, 243, 0.1);
+}
+
+.loading-hint .spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(33, 150, 243, 0.2);
+  border-top-color: #2196F3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.error-hint {
+  margin: 20px 0;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05));
+  border-radius: 12px;
+  border: 1px solid rgba(255, 193, 7, 0.2);
+  color: #FF9800;
+  font-size: 13px;
+  text-align: center;
 }
 
 .ingredients-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 15px;
 }
 
 .ingredient-tag {
-  padding: 12px;
+  padding: 14px 8px;
   border: 2px solid #e0e0e0;
   border-radius: 25px;
   background: white;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   font-size: 14px;
   color: #666;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ingredient-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 142, 83, 0.1));
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .ingredient-tag:hover:not(.disabled) {
   border-color: #ff6b6b;
   color: #ff6b6b;
-  transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(255,107,107,0.1);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 
+    0 8px 20px rgba(255, 107, 107, 0.15),
+    0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ingredient-tag:hover:not(.disabled)::before {
+  opacity: 1;
 }
 
 .ingredient-tag.selected {
   background: linear-gradient(135deg, #FF6B6B, #FF8E53);
   color: white;
   border-color: #ff6b6b;
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(255,107,107,0.25);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 
+    0 12px 30px rgba(255, 107, 107, 0.25),
+    0 6px 15px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation: selectPulse 0.6s ease;
+}
+
+.ingredient-tag.selected .selected-icon {
+  font-size: 16px;
+  font-weight: bold;
+  animation: iconPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .ingredient-tag.disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+@keyframes selectPulse {
+  0%, 100% { transform: translateY(-4px) scale(1.05); }
+  50% { transform: translateY(-4px) scale(1.1); }
+}
+
+@keyframes iconPop {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 .recommend-section {
   text-align: center;
-  margin: 40px 0;
+  margin: 50px 0;
+  position: relative;
 }
 
 .recommend-btn {
-  padding: 18px 50px;
+  padding: 22px 60px;
   background: linear-gradient(135deg, #FF6B6B, #FF8E53);
   color: white;
   border: none;
-  border-radius: 40px;
-  font-size: 20px;
+  border-radius: 50px;
+  font-size: 22px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(255,107,107,0.3);
-  transition: all 0.3s;
+  box-shadow: 
+    0 15px 35px rgba(255, 107, 107, 0.3),
+    0 5px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.recommend-btn:hover:not(:disabled) {
-  transform: translateY(-4px);
-  box-shadow: 0 15px 35px rgba(255,107,107,0.4);
-}
-
-.recommend-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.recommend-btn.loading {
-  opacity: 0.8;
-  cursor: wait;
-}
-
-.recommend-btn.loading::after {
+.recommend-btn::before {
   content: '';
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: loading 1.5s infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.7s;
 }
 
-@keyframes loading {
-  0% { left: -100%; }
-  100% { left: 100%; }
+.recommend-btn:hover:not(:disabled)::before {
+  left: 100%;
 }
 
-.result-section {
-  margin-top: 50px;
-  animation: fadeIn 0.6s ease;
+.recommend-btn:hover:not(:disabled) {
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 
+    0 25px 50px rgba(255, 107, 107, 0.4),
+    0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.recommend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 
+    0 5px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.recommend-btn.loading {
+  opacity: 0.8;
+  cursor: wait;
+  padding-left: 50px;
+  padding-right: 50px;
+}
+
+.recommend-btn.pulse-animation {
+  animation: buttonPulse 2s infinite;
+}
+
+.spinner-small {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.sparkle {
+  display: inline-block;
+  animation: sparkle 1.5s infinite;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8));
+}
+
+.hint-text {
+  margin-top: 15px;
+  color: #666;
+  font-size: 14px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes buttonPulse {
+  0%, 100% { 
+    box-shadow: 
+      0 15px 35px rgba(255, 107, 107, 0.3),
+      0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+  50% { 
+    box-shadow: 
+      0 20px 45px rgba(255, 107, 107, 0.4),
+      0 8px 20px rgba(0, 0, 0, 0.15),
+      0 0 30px rgba(255, 107, 107, 0.2);
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(30px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.result-section {
+  margin-top: 60px;
+  animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(40px) scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
 }
 
 .result-section h2 {
   text-align: center;
   color: #333;
-  margin-bottom: 25px;
-  font-size: 24px;
-}
-
-.recipe-card {
-  background: white;
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 10px 35px rgba(0,0,0,0.1);
-  border-top: 4px solid #ff6b6b;
-}
-
-.recipe-card h3 {
-  margin: 0 0 15px 0;
-  color: #333;
-  font-size: 24px;
-}
-
-.description {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 20px;
-  font-size: 16px;
-}
-
-.ai-story {
-  background: linear-gradient(135deg, #fff9c4, #fffde7);
-  border-radius: 15px;
-  padding: 20px;
-  margin: 25px 0;
-  border-left: 5px solid #ffd54f;
-  font-style: italic;
-  color: #5d4037;
-  line-height: 1.6;
-  font-size: 15px;
-}
-
-.ingredients {
-  margin: 25px 0;
-}
-
-.ingredients strong {
-  display: block;
-  margin-bottom: 15px;
-  color: #333;
-  font-size: 16px;
-}
-
-.ingredients-list {
+  margin-bottom: 30px;
+  font-size: 28px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.ing-badge {
-  display: inline-block;
-  background: #f0f0f0;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  color: #666;
-  transition: all 0.3s;
-}
-
-.ing-badge:hover {
-  background: #e0e0e0;
-  transform: translateY(-2px);
-}
-
-.flavor-hint {
-  background: #e3f2fd;
-  border-radius: 15px;
-  padding: 15px;
-  margin: 25px 0;
-  text-align: center;
-  color: #1976d2;
-  font-size: 14px;
-  border: 1px dashed #90caf9;
-}
-
-.actions {
-  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 15px;
-  margin-top: 30px;
 }
 
-.favorite-btn, .detail-btn {
-  flex: 1;
-  padding: 14px;
+.result-section h2::before,
+.result-section h2::after {
+  content: '✨';
+  font-size: 24px;
+  animation: twinkle 2s infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.recipe-card-wrapper {
+  margin: 0 auto;
+  max-width: 600px;
+  transition: all 0.4s ease;
+}
+
+.recipe-card-wrapper:hover {
+  transform: translateY(-5px);
+}
+
+.favorite-hint {
+  text-align: center;
+  margin-top: 20px;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05));
+  border-radius: 15px;
+  border: 1px dashed rgba(255, 193, 7, 0.3);
+  color: #FF9800;
+  font-size: 14px;
+  animation: fadeIn 0.8s ease;
+}
+
+.empty-result {
+  text-align: center;
+  padding: 50px 20px;
+  margin-top: 40px;
+  background: linear-gradient(135deg, rgba(249, 249, 249, 0.8), rgba(245, 245, 245, 0.9));
+  border-radius: 20px;
+  border: 2px dashed #ddd;
+  animation: fadeIn 0.6s ease;
+}
+
+.empty-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-result h3 {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.empty-result p {
+  color: #999;
+  margin-bottom: 25px;
+}
+
+.retry-btn {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #4ECDC4, #44A08D);
+  color: white;
   border: none;
   border-radius: 25px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   transition: all 0.3s;
 }
 
-.favorite-btn {
-  background: #ffebee;
-  color: #d32f2f;
-}
-
-.favorite-btn:hover {
-  background: #ffcdd2;
+.retry-btn:hover {
   transform: translateY(-2px);
-}
-
-.detail-btn {
-  background: linear-gradient(135deg, #4ECDC4, #44A08D);
-  color: white;
-}
-
-.detail-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(78, 205, 196, 0.3);
+  box-shadow: 0 8px 20px rgba(78, 205, 196, 0.3);
 }
 
 .history-section {
-  margin-top: 50px;
+  margin-top: 60px;
+  animation: fadeIn 0.8s ease 0.2s backwards;
 }
 
 .history-section h3 {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   color: #333;
-  font-size: 20px;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-section h3::before {
+  content: '📜';
+  font-size: 24px;
 }
 
 .history-list {
@@ -513,30 +725,69 @@ h1 {
 }
 
 .history-item {
-  padding: 15px 25px;
+  padding: 18px 25px;
   background: white;
-  border-radius: 15px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   font-size: 15px;
   color: #666;
   border: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
 }
 
 .history-item:hover {
-  background: #f9f9f9;
-  transform: translateX(10px);
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.05), rgba(255, 142, 83, 0.05));
+  transform: translateX(12px) translateY(-2px);
   border-color: #ff6b6b;
   color: #ff6b6b;
+  box-shadow: 
+    0 8px 25px rgba(255, 107, 107, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.history-name {
+  font-weight: 500;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-ingredients {
+  font-size: 13px;
+  color: #999;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.history-arrow {
+  color: #ccc;
+  font-size: 18px;
+  transition: all 0.3s;
+}
+
+.history-item:hover .history-arrow {
+  color: #ff6b6b;
+  transform: translateX(5px);
 }
 
 .footer {
-  margin-top: 60px;
-  padding: 25px;
+  margin-top: 80px;
+  padding: 30px;
   text-align: center;
   color: #999;
   font-size: 14px;
   border-top: 1px solid #eee;
+}
+
+.version {
+  font-size: 12px;
+  color: #ccc;
+  margin-top: 10px;
 }
 
 /* 响应式设计 */
@@ -546,25 +797,63 @@ h1 {
   }
 
   h1 {
-    font-size: 26px;
+    font-size: 28px;
+  }
+
+  .ingredients-section {
+    padding: 20px;
+    border-radius: 20px;
   }
 
   .ingredients-grid {
-    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 12px;
   }
 
   .recommend-btn {
-    padding: 16px 40px;
+    padding: 18px 40px;
     font-size: 18px;
+    width: 100%;
+    max-width: 300px;
   }
 
-  .recipe-card {
-    padding: 20px;
+  .recipe-card-wrapper {
+    max-width: 100%;
   }
 
-  .actions {
+  .history-item {
+    padding: 15px 20px;
     flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .history-ingredients {
+    align-self: flex-start;
+  }
+
+  .history-arrow {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .history-item:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .recommend-section,
+  .top-nav,
+  .footer {
+    display: none;
+  }
+  
+  .ingredients-section {
+    break-inside: avoid;
   }
 }
 </style>
