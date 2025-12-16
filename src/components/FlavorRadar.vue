@@ -218,7 +218,7 @@ const getFlavorDescription = (key: keyof FlavorProfile, value: number): string =
   }
 
   const index = Math.min(Math.floor(value), 5)
-  return descriptions[key][index]
+  return descriptions[key]?.[index] || '未知'
 }
 
 // 监听数据变化
