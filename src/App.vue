@@ -1,39 +1,45 @@
+<!-- src/App.vue -->
 <template>
-  <div id="app">
-    <nav>
-      <router-link to="/">首页</router-link> |
-      <router-link to="/favorites">收藏</router-link> |
-      <router-link to="/about">关于</router-link>
-    </nav>
-    <router-view />
-  </div>
+  <!-- 只保留 router-view，移除导航栏 -->
+  <router-view />
 </template>
 
 <script setup lang="ts">
-// 主应用组件
+// 主应用组件 - 不需要其他逻辑
 </script>
 
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  background: #f9f9f9;
+  color: #333;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
-  margin-top: 60px;
-  text-align: center;
 }
 
-nav {
-  padding: 30px;
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-nav a {
-  font-weight: bold;
-  color: #2c3e50;
-  margin: 0 10px;
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
 }
 
-nav a.router-link-exact-active {
-  color: #42b983;
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #ff5252, #ff7b47);
 }
 </style>

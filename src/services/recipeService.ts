@@ -1,7 +1,9 @@
-// src/services/recipeService.ts - 修复版
+// src/services/recipeService.ts
 import { recipes } from '@/data/recipes'
 import type { Recipe } from '@/types/recipe'
-import { generateCreativeName, generateFlavorStory } from './aiService'
+import { generateCreativeName, generateFlavorStory } from '@/services/aiService'
+
+export type GetAllIngredientsResponse = string[]
 
 // ==================== 类型定义 ====================
 interface AIEnhancementResult {
@@ -177,12 +179,17 @@ export const getRecipesByCategory = async (category: string): Promise<Recipe[]> 
   return enhancedRecipes
 }
 
-export const getAllIngredientsService = async (): Promise<string[]> => {
+// src/services/recipeService.ts - 优化版本
+export const getAllIngredients = async (): Promise<string[]> => {
   const allIngredients = new Set<string>()
+
   recipes.forEach(recipe => {
-    recipe.ingredients?.forEach(ingredient => {
-  allIngredients.add(ingredient)  // ingredient 现在是字符串
-})
+    recipe.ingredients?.forEach((ingredient: string) => {
+      if (ingredient && ingredient.trim()) {
+        allIngredients.add(ingredient.trim())
+      }
+    })
   })
-  return Array.from(allIngredients)
+
+  return Array.from(allIngredients).sort((a, b) => a.localeCompare(b, 'zh-CN'))
 }
