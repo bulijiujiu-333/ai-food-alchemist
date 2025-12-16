@@ -2,22 +2,22 @@
 <template>
   <div class="home">
     <h1>🍳 AI美食炼金术师</h1>
-    
+
     <!-- 顶部导航（如果需要） -->
     <div class="top-nav">
       <router-link to="/favorites" class="nav-link">
         <span>⭐ 我的收藏</span>
       </router-link>
     </div>
-    
+
     <!-- 食材选择区域 -->
     <div class="ingredients-section">
       <h2>选择你的食材</h2>
-      
+
       <div class="selected-count">
         已选择 {{ selectedIngredientsCount }} 种食材
-        <button 
-          @click="clearAll" 
+        <button
+          @click="clearAll"
           v-if="hasSelectedIngredients"
           class="clear-btn"
           :disabled="isLoading"
@@ -25,7 +25,7 @@
           {{ isLoading ? '处理中...' : '清空' }}
         </button>
       </div>
-      
+
       <div class="ingredients-grid">
         <button
           v-for="ingredient in availableIngredients"
@@ -33,10 +33,10 @@
           @click="toggleIngredient(ingredient)"
           :disabled="isLoading"
           :class="[
-            'ingredient-tag', 
-            { 
+            'ingredient-tag',
+            {
               'selected': isSelected(ingredient),
-              'disabled': isLoading 
+              'disabled': isLoading
             }
           ]"
         >
@@ -44,7 +44,7 @@
         </button>
       </div>
     </div>
-    
+
     <!-- 推荐按钮 -->
     <div class="recommend-section">
       <button
@@ -56,19 +56,19 @@
         <span v-else>✨ 开始炼金！</span>
       </button>
     </div>
-    
+
     <!-- 推荐结果 -->
     <div v-if="currentRecipe" class="result-section">
       <h2>✨ 炼金成果 ✨</h2>
       <div class="recipe-card">
         <h3>{{ currentRecipe.displayName || currentRecipe.originalName }}</h3>
         <p class="description">{{ currentRecipe.description }}</p>
-        
+
         <!-- AI生成的故事 -->
         <div v-if="currentRecipe.story" class="ai-story">
           <p>「{{ currentRecipe.story }}」</p>
         </div>
-        
+
         <div class="ingredients">
           <strong>所需食材：</strong>
           <div class="ingredients-list">
@@ -77,12 +77,12 @@
             </span>
           </div>
         </div>
-        
+
         <!-- 风味雷达图提示 -->
         <div v-if="currentRecipe.flavorProfile" class="flavor-hint">
           <small>🎯 风味分析数据已就绪，等待雷达图组件</small>
         </div>
-        
+
         <div class="actions">
           <button @click="toggleFavorite(currentRecipe)" class="favorite-btn">
             {{ isFavorite(currentRecipe.id) ? '❤️ 已收藏' : '🤍 收藏' }}
@@ -93,13 +93,13 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 历史记录 -->
     <div v-if="historyRecipes.length > 0" class="history-section">
       <h3>📜 最近推荐</h3>
       <div class="history-list">
-        <div 
-          v-for="recipe in historyRecipes.slice(0, 5)" 
+        <div
+          v-for="recipe in historyRecipes.slice(0, 5)"
           :key="recipe.id"
           @click="viewDetail(recipe.id)"
           class="history-item"
@@ -108,7 +108,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 底部信息 -->
     <div class="footer">
       <p>AI美食炼金术师 · 让每道菜都有魔法 ✨</p>
@@ -121,7 +121,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
 // 导入B同学的数据
-import { getAllIngredients } from '@/data/recipes'
+import { getAllIngredients } from '@/services/recipeService'
 
 const router = useRouter()
 const recipeStore = useRecipeStore()
@@ -544,25 +544,25 @@ h1 {
   .home {
     padding: 15px;
   }
-  
+
   h1 {
     font-size: 26px;
   }
-  
+
   .ingredients-grid {
     grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
     gap: 10px;
   }
-  
+
   .recommend-btn {
     padding: 16px 40px;
     font-size: 18px;
   }
-  
+
   .recipe-card {
     padding: 20px;
   }
-  
+
   .actions {
     flex-direction: column;
   }
