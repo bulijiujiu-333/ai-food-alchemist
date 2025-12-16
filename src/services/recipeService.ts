@@ -1,7 +1,7 @@
-// src/services/recipeService.ts - 修复版
+// src/services/recipeService.ts
 import { recipes } from '@/data/recipes'
 import type { Recipe } from '@/types/recipe'
-import { generateCreativeName, generateFlavorStory } from './aiService'
+import { generateCreativeName, generateFlavorStory } from '@/services/aiService'
 
 // ==================== 类型定义 ====================
 interface AIEnhancementResult {
