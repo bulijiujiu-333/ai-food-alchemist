@@ -1,18 +1,62 @@
-// stores/recipe.ts - 准确集成版本
+// stores/recipe.ts - 最终优化版
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 // ✅ 导入B同学的类型
-import type { Recipe } from '@/types/recipe'
+import type { Recipe, FlavorProfile } from '@/types/recipe'
 // ✅ 导入B同学的API服务
 import { getRecipeRecommendation } from '@/services/recipeService'
 
 export const useRecipeStore = defineStore('recipe', () => {
   // 状态 - 使用B同学的类型
   const selectedIngredients = ref<string[]>([])
-  const currentRecipe = ref<Recipe | null>(null)  // ✅ 使用Recipe类型
+  const currentRecipe = ref<Recipe | null>(null)
   const isLoading = ref(false)
-  const favorites = ref<Recipe[]>([])  // ✅ 使用Recipe类型
-  const historyRecipes = ref<Recipe[]>([])  // ✅ 使用Recipe类型
+  const favorites = ref<Recipe[]>([])
+  const historyRecipes = ref<Recipe[]>([])
+
+  // 🔄 从本地存储加载数据
+  const loadFromLocalStorage = () => {
+    try {
+      const savedFavorites = localStorage.getItem('recipe_favorites')
+      const savedHistory = localStorage.getItem('recipe_history')
+      const savedSelected = localStorage.getItem('selected_ingredients')
+
+      if (savedFavorites) {
+        favorites.value = JSON.parse(savedFavorites)
+      }
+      if (savedHistory) {
+        historyRecipes.value = JSON.parse(savedHistory)
+      }
+      if (savedSelected) {
+        selectedIngredients.value = JSON.parse(savedSelected)
+      }
+    } catch (error) {
+      console.error('加载本地存储失败:', error)
+      // 清空本地存储中的无效数据
+      localStorage.removeItem('recipe_favorites')
+      localStorage.removeItem('recipe_history')
+      localStorage.removeItem('selected_ingredients')
+    }
+  }
+
+  // 💾 保存数据到本地存储
+  const saveToLocalStorage = () => {
+    try {
+      localStorage.setItem('recipe_favorites', JSON.stringify(favorites.value))
+      localStorage.setItem('recipe_history', JSON.stringify(historyRecipes.value))
+      localStorage.setItem('selected_ingredients', JSON.stringify(selectedIngredients.value))
+    } catch (error) {
+      console.error('保存到本地存储失败:', error)
+    }
+  }
+
+  // 📥 初始化时加载数据
+  loadFromLocalStorage()
+
+  // 👁️ 监听状态变化自动保存
+  watch(favorites, saveToLocalStorage, { deep: true })
+  watch(historyRecipes, saveToLocalStorage, { deep: true })
+  watch(selectedIngredients, saveToLocalStorage, { deep: true })
 
   // 计算属性
   const hasSelectedIngredients = computed(() => {
@@ -37,7 +81,7 @@ export const useRecipeStore = defineStore('recipe', () => {
     selectedIngredients.value = []
   }
 
-  // ✅ 新增：调用B同学的推荐API
+  // ✅ 优化后的推荐函数
   const getRecommendation = async (): Promise<Recipe | null> => {
     if (selectedIngredients.value.length === 0) {
       console.warn('请先选择食材')
@@ -47,19 +91,29 @@ export const useRecipeStore = defineStore('recipe', () => {
     try {
       isLoading.value = true
       
-      // ✅ 准确调用B同学的函数
+      // ✅ 调用B同学的API
       const recipe = await getRecipeRecommendation(selectedIngredients.value)
       
       if (!recipe) {
         console.warn('没有找到匹配的菜谱')
-        return null
+        
+        // 使用更友好的降级方案
+        const fallbackRecipe = createFallbackRecipe(selectedIngredients.value)
+        currentRecipe.value = fallbackRecipe
+        return fallbackRecipe
       }
       
       // 设置当前菜谱
       currentRecipe.value = recipe
       
-      // 添加到历史记录
+      // 添加到历史记录（去重）
+      const existingIndex = historyRecipes.value.findIndex(r => r.id === recipe.id)
+      if (existingIndex > -1) {
+        historyRecipes.value.splice(existingIndex, 1)
+      }
       historyRecipes.value.unshift(recipe)
+      
+      // 只保留最近10条记录
       if (historyRecipes.value.length > 10) {
         historyRecipes.value.pop()
       }
@@ -70,24 +124,8 @@ export const useRecipeStore = defineStore('recipe', () => {
     } catch (error) {
       console.error('❌ 推荐失败:', error)
       
-      // 降级方案：返回一个简单的模拟数据
-      const fallbackRecipe: Recipe = {
-        id: 'fallback-' + Date.now(),
-        originalName: '备用菜谱',
-        displayName: '备用菜谱',
-        description: '请稍后重试或选择其他食材',
-        ingredients: selectedIngredients.value,
-        steps: ['请稍后重试'],
-        flavorProfile: {
-          savory: 3,
-          sweet: 3,
-          sour: 3,
-          spicy: 3,
-          umami: 3,
-          bitter: 3
-        }
-      }
-      
+      // 使用降级方案
+      const fallbackRecipe = createFallbackRecipe(selectedIngredients.value)
       currentRecipe.value = fallbackRecipe
       return fallbackRecipe
       
@@ -96,12 +134,54 @@ export const useRecipeStore = defineStore('recipe', () => {
     }
   }
 
+  // 🛡️ 创建降级菜谱的辅助函数
+  const createFallbackRecipe = (ingredients: string[]): Recipe => {
+    const timestamp = Date.now()
+    const flavorProfile: FlavorProfile = {
+      savory: 3,
+      sweet: 3,
+      sour: 3,
+      spicy: 3,
+      umami: 3,
+      bitter: 3
+    }
+
+    return {
+      id: `fallback-${timestamp}`,
+      originalName: '创意搭配',
+      displayName: '✨ 魔法创意菜',
+      description: '基于您选择的食材生成的创意搭配，试试看吧！',
+      ingredients: ingredients,
+      steps: [
+        '将所选食材洗净切好备用',
+        '根据个人口味选择合适的烹饪方式',
+        '尝试不同的调味组合',
+        '发挥创意，创造属于你的独特美食！'
+      ],
+      flavorProfile,
+      story: '这是一道由AI美食炼金术师为您特别创意的菜谱。虽然没有找到完全匹配的传统菜谱，但您选择的食材组合本身就充满了可能性！',
+      cookingTime: 20,
+      difficulty: '简单' as const,
+      category: ['创意菜', '自定义']
+    }
+  }
+
   const setCurrentRecipe = (recipe: Recipe) => {
     currentRecipe.value = recipe
+    
+    // 添加到历史记录（去重）
+    const existingIndex = historyRecipes.value.findIndex(r => r.id === recipe.id)
+    if (existingIndex > -1) {
+      historyRecipes.value.splice(existingIndex, 1)
+    }
     historyRecipes.value.unshift(recipe)
+    
+    // 只保留最近10条
     if (historyRecipes.value.length > 10) {
       historyRecipes.value.pop()
     }
+    
+    saveToLocalStorage()
   }
 
   const toggleFavorite = (recipe: Recipe) => {
@@ -111,10 +191,23 @@ export const useRecipeStore = defineStore('recipe', () => {
     } else {
       favorites.value.push(recipe)
     }
+    saveToLocalStorage()
   }
 
-  const isFavorite = (recipeId: string) => {
+  const isFavorite = (recipeId: string): boolean => {
     return favorites.value.some(r => r.id === recipeId)
+  }
+
+  // 🧹 清除所有数据
+  const clearAllData = () => {
+    selectedIngredients.value = []
+    currentRecipe.value = null
+    favorites.value = []
+    historyRecipes.value = []
+    
+    localStorage.removeItem('recipe_favorites')
+    localStorage.removeItem('recipe_history')
+    localStorage.removeItem('selected_ingredients')
   }
 
   return {
@@ -135,7 +228,9 @@ export const useRecipeStore = defineStore('recipe', () => {
     setCurrentRecipe,
     toggleFavorite,
     isFavorite,
-    // ✅ 导出新增的方法
-    getRecommendation
+    getRecommendation,
+    clearAllData,
+    loadFromLocalStorage,
+    saveToLocalStorage
   }
 })
