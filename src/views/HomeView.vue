@@ -59,20 +59,18 @@
 
     <!-- 推荐按钮 -->
     <div class="recommend-section">
-      <button
-        @click="handleRecommend"
-        :disabled="!hasSelectedIngredients || isLoading"
-        :class="['recommend-btn', { 'loading': isLoading, 'pulse-animation': hasSelectedIngredients && !isLoading }]"
-      >
-        <span v-if="isLoading">
-          <span class="spinner-small"></span>
-          炼金中...
-        </span>
-        <span v-else>
-          ✨ 开始炼金！
-          <span class="sparkle">✨</span>
-        </span>
-      </button>
+      <PrimaryButton
+  @click="handleRecommend"
+  :loading="isLoading"
+  :disabled="!hasSelectedIngredients"
+  size="large"
+  class="recommend-btn"
+>
+  <template #icon>
+    ✨
+  </template>
+  开始炼金！
+</PrimaryButton>
       
       <!-- 提示信息 -->
       <div v-if="!hasSelectedIngredients" class="hint-text">
@@ -131,6 +129,17 @@
       <p>AI美食炼金术师 · 让每道菜都有魔法 ✨</p>
       <p class="version">版本 v0.1.0 | A同学 × B同学 × C同学 联合打造</p>
     </div>
+
+    <!-- 开盲盒动画组件 -->
+<BoxOpeningAnimation
+  v-if="showAnimation"
+  :visible="showAnimation"
+  :ingredients="animationIngredients"
+  :resultRecipe="currentRecipe || undefined"  
+  @close="showAnimation = false"
+  @animation-complete="handleAnimationComplete"
+/>
+
   </div>
 </template>
 
@@ -142,9 +151,13 @@ import { useRecipeStore } from '@/stores/recipe'
 import { getAllIngredients } from '@/services/recipeService'
 // ✅ 导入B同学的RecipeCard组件
 import RecipeCard from '@/components/RecipeCard.vue'
+import BoxOpeningAnimation from '@/components/BoxOpeningAnimation.vue'
 
 const router = useRouter()
 const recipeStore = useRecipeStore()
+
+const showAnimation = ref(false)
+const animationIngredients = ref<string[]>([])
 
 // 状态
 const availableIngredients = ref<string[]>([])
@@ -222,27 +235,64 @@ const isFavorite = (recipeId: string) => {
 
 // 核心：调用推荐方法
 const handleRecommend = async () => {
-  if (!hasSelectedIngredients.value || isLoading.value) return
+  if (!hasSelectedIngredients.value) return
   
-  recommendationError.value = false
-  
-  const recipe = await recipeStore.getRecommendation()
-  
-  if (recipe) {
-    // 自动滚动到结果区域
-    setTimeout(() => {
-      const resultSection = document.querySelector('.result-section')
-      if (resultSection) {
-        resultSection.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start',
-          inline: 'nearest'
-        })
-      }
-    }, 300)
-  } else {
-    recommendationError.value = true
+  try {
+    // 保存当前选择的食材用于动画
+    animationIngredients.value = [...recipeStore.selectedIngredients]
+    
+    // 显示动画
+    showAnimation.value = true
+    
+    // 原有的推荐逻辑
+    recipeStore.isLoading = true
+    const recipe = await recipeStore.getRecommendation()
+    
+    if (recipe) {
+      recipeStore.setCurrentRecipe(recipe)
+    } else {
+      showToast('没有找到匹配的菜谱，请尝试其他食材组合')
+    }
+  } catch (error) {
+    console.error('推荐失败:', error)
+    showToast('炼金失败，请稍后重试')
+  } finally {
+    recipeStore.isLoading = false
   }
+}
+
+const showToast = (message: string, duration = 2000) => {
+  // 创建Toast元素
+  const toast = document.createElement('div')
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border-radius: 4px;
+    z-index: 9999;
+    font-size: 14px;
+  `
+  toast.textContent = message
+  document.body.appendChild(toast)
+  
+  // 自动关闭
+  setTimeout(() => {
+    toast.remove()
+  }, duration)
+}
+
+const handleAnimationComplete = () => {
+  // 动画完成后滚动到结果
+  setTimeout(() => {
+    const resultSection = document.querySelector('.result-section')
+    if (resultSection) {
+      resultSection.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, 500)
 }
 
 const viewDetail = (id: string) => {
