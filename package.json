@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.3",
+    "@types/echarts": "^4.9.22",
     "@types/node": "^24.10.1",
     "@vant/auto-import-resolver": "^1.3.0",
     "@vitejs/plugin-vue": "^6.0.2",
