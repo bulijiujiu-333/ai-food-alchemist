@@ -1,297 +1,322 @@
 <template>
   <div class="flavor-radar-container">
-    <div ref="chartRef" class="flavor-radar-chart"></div>
-    <div class="flavor-legend">
-      <div v-for="(label, key) in flavorLabels" :key="key" class="legend-item">
-        <span class="legend-color" :style="{ background: flavorColors[key as keyof typeof flavorColors] }"></span>
-        <span class="legend-text">{{ label }}: {{ getFlavorValue(key as keyof FlavorProfile) }}/5</span>
+    <div class="radar-title">风味分析</div>
+    
+    <!-- 雷达图主体 -->
+    <div class="radar-main" ref="radarRef">
+      <!-- 背景网格 -->
+      <div class="radar-grid">
+        <div class="grid-circle" v-for="n in 5" :key="n" 
+             :style="{ transform: `scale(${n * 0.2})` }"></div>
+      </div>
+      
+      <!-- 坐标轴 -->
+      <div class="radar-axes">
+        <div class="axis" v-for="(flavor, index) in flavors" :key="flavor.key"
+             :style="{ transform: `rotate(${index * 60}deg)` }">
+          <span class="axis-label">{{ flavor.label }}</span>
+        </div>
+      </div>
+      
+      <!-- 数据区域 -->
+      <div class="radar-data">
+        <!-- 多边形填充 -->
+        <div class="data-polygon" :style="polygonStyle"></div>
+        
+        <!-- 数据点 -->
+        <div class="data-points">
+          <div class="data-point" v-for="(point, index) in dataPoints" 
+               :key="index" :style="getPointStyle(point)"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 图例 -->
+    <div class="radar-legend">
+      <div class="legend-item" v-for="flavor in flavors" :key="flavor.key">
+        <div class="legend-color" :style="{ backgroundColor: flavor.color }"></div>
+        <span class="legend-label">{{ flavor.label }}</span>
+        <span class="legend-value">{{ getFlavorValue(flavor.key) }}/5</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from 'echarts'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { FlavorProfile } from '@/types/recipe'
 
-// 定义props
 interface Props {
   data: FlavorProfile
-  width?: string
-  height?: string
-  showLegend?: boolean
+  width?: number
+  height?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  width: '100%',
-  height: '300px',
-  showLegend: true
+  width: 300,
+  height: 300
 })
 
-// 图表引用
-const chartRef = ref<HTMLElement>()
-let chart: echarts.ECharts | null = null
+const radarRef = ref<HTMLElement>()
 
-// 风味标签和颜色
-const flavorLabels = {
-  savory: '咸',
-  sweet: '甜',
-  sour: '酸',
-  spicy: '辣',
-  umami: '鲜',
-  bitter: '苦'
-}
+// 风味定义
+const flavors = [
+  { key: 'savory', label: '咸', color: '#FF6B6B' },
+  { key: 'sweet', label: '甜', color: '#4ECDC4' },
+  { key: 'sour', label: '酸', color: '#FFD166' },
+  { key: 'spicy', label: '辣', color: '#FF8E53' },
+  { key: 'umami', label: '鲜', color: '#9D4EDD' },
+  { key: 'bitter', label: '苦', color: '#2A9D8F' }
+]
 
-const flavorColors = {
-  savory: '#FF6B6B',
-  sweet: '#4ECDC4',
-  sour: '#45B7D1',
-  spicy: '#96CEB4',
-  umami: '#FFEAA7',
-  bitter: '#DDA0DD'
-}
-
-// 获取风味值
-const getFlavorValue = (key: keyof FlavorProfile): number => {
-  return props.data[key] || 0
-}
-
-// 初始化图表
-const initChart = () => {
-  if (!chartRef.value) {
-    console.warn('图表容器未找到')
-    return
-  }
-
-  // 销毁旧图表
-  if (chart) {
-    chart.dispose()
-  }
-
-  // 初始化新图表
-  chart = echarts.init(chartRef.value)
-
-  // 准备雷达图指标
-  const indicator = Object.entries(flavorLabels).map(([key, label]) => ({
-    name: label,
-    max: 5,
-    color: flavorColors[key as keyof typeof flavorColors]
-  }))
-
-  // 准备数据
-  const data = Object.entries(props.data).map(([key, value]) => value)
-
-  // 图表配置
-  const option = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      formatter: (params: any) => {
-        const index = params.dataIndex
-        const keys = Object.keys(flavorLabels)
-        const key = keys[index]
-        const value = params.value
-        const label = flavorLabels[key as keyof typeof flavorLabels]
-        const color = flavorColors[key as keyof typeof flavorColors]
-
-        return `
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 12px; height: 12px; border-radius: 50%; background: ${color};"></div>
-            <span style="font-weight: bold;">${label}: ${value}/5</span>
-          </div>
-          <div style="margin-top: 4px; font-size: 12px; color: #666;">
-            ${getFlavorDescription(key as keyof FlavorProfile, value)}
-          </div>
-        `
-      },
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#ddd',
-      borderWidth: 1,
-      textStyle: {
-        color: '#333',
-        fontSize: 12
-      },
-      extraCssText: 'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); border-radius: 8px;'
-    },
-    radar: {
-      shape: 'circle',
-      center: ['50%', '50%'],
-      radius: '60%',
-      splitNumber: 5,
-      axisName: {
-        color: '#666',
-        fontSize: 12,
-        fontWeight: 'normal',
-        formatter: (name: string, indicator: any) => {
-          return `{${name}|${name}}`
-        },
-        rich: {
-          savory: { color: flavorColors.savory, fontWeight: 'bold' },
-          sweet: { color: flavorColors.sweet, fontWeight: 'bold' },
-          sour: { color: flavorColors.sour, fontWeight: 'bold' },
-          spicy: { color: flavorColors.spicy, fontWeight: 'bold' },
-          umami: { color: flavorColors.umami, fontWeight: 'bold' },
-          bitter: { color: flavorColors.bitter, fontWeight: 'bold' }
-        }
-      },
-      axisLine: {
-        lineStyle: {
-          color: 'rgba(0, 0, 0, 0.1)',
-          width: 1
-        }
-      },
-      splitLine: {
-        lineStyle: {
-          color: 'rgba(0, 0, 0, 0.1)',
-          width: 1
-        }
-      },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(255,255,255,0.5)', 'rgba(255,255,255,0.2)']
-        }
-      },
-      indicator: indicator
-    },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: data,
-            name: '风味分布',
-            symbol: 'circle',
-            symbolSize: 8,
-            lineStyle: {
-              width: 3,
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#FF6B6B' },
-                { offset: 0.5, color: '#FF8E53' },
-                { offset: 1, color: '#4ECDC4' }
-              ])
-            },
-            areaStyle: {
-              color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
-                { offset: 0, color: 'rgba(255, 107, 107, 0.3)' },
-                { offset: 0.7, color: 'rgba(255, 142, 83, 0.2)' },
-                { offset: 1, color: 'rgba(78, 205, 196, 0.1)' }
-              ])
-            },
-            itemStyle: {
-              color: '#FF6B6B',
-              borderColor: '#fff',
-              borderWidth: 2
-            }
-          }
-        ]
-      }
-    ]
-  }
-
-  // 设置选项
-  chart.setOption(option)
-
-  // 响应式调整
-  const resizeChart = () => {
-    chart?.resize()
-  }
-
-  window.addEventListener('resize', resizeChart)
-
-  // 清理函数
-  onUnmounted(() => {
-    window.removeEventListener('resize', resizeChart)
-    chart?.dispose()
+// 计算数据点
+const dataPoints = computed(() => {
+  return flavors.map(flavor => {
+    const value = props.data[flavor.key as keyof FlavorProfile] || 0
+    const normalizedValue = Math.min(Math.max(value, 0), 5)
+    const angle = (flavors.findIndex(f => f.key === flavor.key) * 60) * Math.PI / 180
+    
+    return {
+      ...flavor,
+      value: normalizedValue,
+      angle,
+      radius: (normalizedValue / 5) * 100
+    }
   })
+})
+
+// 计算多边形样式
+const polygonStyle = computed(() => {
+  const points = dataPoints.value.map(point => {
+    const x = 50 + point.radius * Math.cos(point.angle)
+    const y = 50 + point.radius * Math.sin(point.angle)
+    return `${x}% ${y}%`
+  }).join(', ')
+  
+  return {
+    clipPath: `polygon(${points})`,
+    background: `conic-gradient(
+      from 0deg,
+      ${flavors.map((f, i) => `${f.color} ${i * 60}deg ${(i + 1) * 60}deg`).join(', ')}
+    )`
+  }
+})
+
+// 获取点样式
+const getPointStyle = (point: any) => {
+  const x = 50 + point.radius * Math.cos(point.angle)
+  const y = 50 + point.radius * Math.sin(point.angle)
+  
+  return {
+    left: `${x}%`,
+    top: `${y}%`,
+    backgroundColor: point.color,
+    boxShadow: `0 0 10px ${point.color}`
+  }
 }
 
-// 获取风味描述
-const getFlavorDescription = (key: keyof FlavorProfile, value: number): string => {
-  const descriptions: Record<keyof FlavorProfile, string[]> = {
-    savory: ['清淡', '适中', '偏咸', '较咸', '非常咸', '重咸'],
-    sweet: ['不甜', '微甜', '适中', '偏甜', '较甜', '非常甜'],
-    sour: ['不酸', '微酸', '适中', '偏酸', '较酸', '非常酸'],
-    spicy: ['不辣', '微辣', '适中', '偏辣', '较辣', '非常辣'],
-    umami: ['平淡', '微鲜', '适中', '鲜美', '很鲜', '极致鲜美'],
-    bitter: ['不苦', '微苦', '适中', '偏苦', '较苦', '非常苦']
-  }
-
-  const index = Math.min(Math.floor(value), 5)
-  return descriptions[key]?.[index] || '未知'
+const getFlavorValue = (key: string): number => {
+  return props.data[key as keyof FlavorProfile] || 0
 }
 
-// 监听数据变化
-watch(() => props.data, () => {
-  if (chart) {
-    const data = Object.entries(props.data).map(([key, value]) => value)
-    chart.setOption({
-      series: [{
-        data: [{
-          value: data
-        }]
-      }]
-    })
-  }
-}, { deep: true })
+// 响应式调整
+const handleResize = () => {
+  if (!radarRef.value) return
+  
+  const container = radarRef.value.parentElement
+  if (!container) return
+  
+  const maxSize = Math.min(container.clientWidth, 400)
+  radarRef.value.style.width = `${maxSize}px`
+  radarRef.value.style.height = `${maxSize}px`
+}
 
-// 组件挂载时初始化
 onMounted(() => {
-  setTimeout(() => {
-    initChart()
-  }, 100)
+  handleResize()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
-<style scoped lang="less">
+<style lang="less" scoped>
+@import '@/assets/styles/main.less';
+
 .flavor-radar-container {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.flavor-radar-chart {
-  width: v-bind(width);
-  height: v-bind(height);
-  min-height: 250px;
-}
-
-.flavor-legend {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 20px;
-  width: 100%;
-  max-width: 400px;
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #666;
-
-    .legend-color {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      flex-shrink: 0;
+  gap: 20px;
+  
+  .radar-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: @text-primary;
+    text-align: center;
+  }
+  
+  .radar-main {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin: 0 auto;
+    
+    // 网格
+    .radar-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      
+      .grid-circle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        
+        &:nth-child(1) { border-color: rgba(0, 0, 0, 0.05); }
+        &:nth-child(2) { border-color: rgba(0, 0, 0, 0.08); }
+        &:nth-child(3) { border-color: rgba(0, 0, 0, 0.1); }
+        &:nth-child(4) { border-color: rgba(0, 0, 0, 0.12); }
+        &:nth-child(5) { border-color: rgba(0, 0, 0, 0.15); }
+      }
     }
-
-    .legend-text {
-      font-weight: 500;
+    
+    // 坐标轴
+    .radar-axes {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      
+      .axis {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 1px;
+        height: 100%;
+        transform-origin: bottom center;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(to top, rgba(0, 0, 0, 0.1), transparent);
+        }
+        
+        .axis-label {
+          position: absolute;
+          top: -30px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 12px;
+          font-weight: 500;
+          color: @text-secondary;
+          white-space: nowrap;
+        }
+      }
+    }
+    
+    // 数据区域
+    .radar-data {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      
+      .data-polygon {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        opacity: 0.3;
+        transition: clip-path 0.8s ease;
+      }
+      
+      .data-points {
+        .data-point {
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          border: 2px solid white;
+          transform: translate(-50%, -50%);
+          transition: all 0.5s ease;
+          z-index: 2;
+        }
+      }
+    }
+  }
+  
+  // 图例
+  .radar-legend {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 280px;
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+      }
+      
+      .legend-label {
+        color: @text-secondary;
+        flex: 1;
+      }
+      
+      .legend-value {
+        color: @text-primary;
+        font-weight: 600;
+      }
     }
   }
 }
 
-@media (max-width: 768px) {
-  .flavor-legend {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+// 响应式
+@media (max-width: @breakpoint-tablet) {
+  .flavor-radar-container {
+    .radar-main {
+      width: 240px !important;
+      height: 240px !important;
+    }
+    
+    .radar-legend {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}
 
-    .legend-item {
-      font-size: 12px;
+@media (max-width: 480px) {
+  .flavor-radar-container {
+    .radar-main {
+      width: 200px !important;
+      height: 200px !important;
+    }
+    
+    .radar-legend {
+      grid-template-columns: 1fr;
     }
   }
 }
