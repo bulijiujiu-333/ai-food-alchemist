@@ -38,23 +38,17 @@
       </div>
 
       <div class="ingredients-grid">
-        <button
-          v-for="ingredient in availableIngredients"
-          :key="ingredient"
-          @click="toggleIngredient(ingredient)"
-          :disabled="isLoading || loadingIngredients"
-          :class="[
-            'ingredient-tag',
-            {
-              'selected': isSelected(ingredient),
-              'disabled': isLoading || loadingIngredients
-            }
-          ]"
-        >
-          {{ ingredient }}
-          <span v-if="isSelected(ingredient)" class="selected-icon">✓</span>
-        </button>
-      </div>
+  <IngredientTag
+    v-for="ingredient in availableIngredients"
+    :key="ingredient"
+    :ingredient="ingredient"
+    :selected="isSelected(ingredient)"
+    :disabled="isLoading || loadingIngredients"
+    :size="'medium'"
+    @click="toggleIngredient(ingredient)"
+    class="custom-ingredient-tag"
+  />
+</div>
     </div>
 
     <!-- 推荐按钮 -->
@@ -107,7 +101,7 @@
 
     <!-- 历史记录 -->
     <div v-if="historyRecipes.length > 0" class="history-section">
-      <h3>📜 最近推荐</h3>
+      <h3> 最近推荐</h3>
       <div class="history-list">
         <div
           v-for="recipe in historyRecipes.slice(0, 5)"
@@ -152,6 +146,8 @@ import { getAllIngredients } from '@/services/recipeService'
 // ✅ 导入B同学的RecipeCard组件
 import RecipeCard from '@/components/RecipeCard.vue'
 import BoxOpeningAnimation from '@/components/BoxOpeningAnimation.vue'
+import PrimaryButton from '@/components/PrimaryButton.vue'
+import IngredientTag from '@/components/IngredientTag.vue'
 
 const router = useRouter()
 const recipeStore = useRecipeStore()
@@ -448,6 +444,87 @@ h1 {
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 15px;
 }
+
+/* ============ 新增：为自定义组件添加样式 ============ */
+/* 给组件容器设置宽度 */
+.custom-ingredient-tag {
+  width: 100%;
+  display: block;
+}
+
+/* 穿透到组件内部的按钮元素 */
+.custom-ingredient-tag :deep(.ingredient-tag) {
+  padding: 14px 8px;
+  border: 2px solid #e0e0e0;
+  border-radius: 25px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.custom-ingredient-tag :deep(.ingredient-tag::before) {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 142, 83, 0.1));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.custom-ingredient-tag :deep(.ingredient-tag:hover:not(.disabled)) {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 
+    0 8px 20px rgba(255, 107, 107, 0.15),
+    0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.custom-ingredient-tag :deep(.ingredient-tag:hover:not(.disabled)::before) {
+  opacity: 1;
+}
+
+.custom-ingredient-tag :deep(.ingredient-tag.selected) {
+  background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+  color: white;
+  border-color: #ff6b6b;
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 
+    0 12px 30px rgba(255, 107, 107, 0.25),
+    0 6px 15px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation: selectPulse 0.6s ease;
+}
+
+.custom-ingredient-tag :deep(.ingredient-tag.selected .selected-icon) {
+  font-size: 16px;
+  font-weight: bold;
+  animation: iconPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-ingredient-tag :deep(.ingredient-tag.disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ============ 新增结束 ============ */
+
+
 
 .ingredient-tag {
   padding: 14px 8px;
