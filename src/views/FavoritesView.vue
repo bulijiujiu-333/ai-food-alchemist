@@ -125,7 +125,7 @@
                   :key="key"
                   class="flavor-bar"
                 >
-                  <span class="flavor-name">{{ getFlavorLabel(key) }}</span>
+                 <span class="flavor-name">{{ getFlavorLabel(String(key)) }}</span>
                   <div class="bar-container">
                     <div 
                       class="bar-fill" 
