@@ -9,7 +9,8 @@ const router = createRouter({
       name: 'home',
       component: HomeView,
       meta: {
-        title: 'AI美食炼金术师'
+        title: 'AI美食炼金术师',
+        transition: 'fade' // 新增：首页过渡动画
       }
     },
     {
@@ -17,7 +18,8 @@ const router = createRouter({
       name: 'detail',
       component: () => import('../views/DetailView.vue'),
       meta: {
-        title: '菜谱详情'
+        title: '菜谱详情',
+        transition: 'slide-up' // 新增：详情页过渡动画
       }
     },
     {
@@ -25,13 +27,18 @@ const router = createRouter({
       name: 'favorites',
       component: () => import('../views/FavoritesView.vue'),
       meta: {
-        title: '我的收藏'
+        title: '我的收藏',
+        transition: 'slide-up' // 新增：收藏页过渡动画
       }
     },
     {
       path: '/about',
       name: 'about',
-      component: () => import('../views/AboutView.vue')
+      component: () => import('../views/AboutView.vue'),
+      meta: {
+        title: '关于我们', // 补充 title
+        transition: 'fade' // 新增：关于页过渡动画
+      }
     }
   ]
 })

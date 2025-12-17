@@ -21,7 +21,9 @@
     </div>
     
     <!-- 图标插槽 -->
-    <slot v-else name="icon" class="button-icon"></slot>
+    <span v-if="$slots.icon" class="button-icon">
+      <slot name="icon"></slot>
+    </span>
     
     <!-- 按钮文字 -->
     <span class="button-text">

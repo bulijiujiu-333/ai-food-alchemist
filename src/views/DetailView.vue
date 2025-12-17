@@ -105,6 +105,10 @@
         </div>
       </div>
 
+      <div v-if="recipe?.flavorProfile" class="flavor-section">
+  <FlavorRadar :data="recipe.flavorProfile" />
+</div>
+
       <!-- 制作步骤 -->
       <div class="steps-section">
         <h3 class="section-title">
@@ -197,7 +201,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
 import { getRecipeByIdService } from '@/services/recipeService'
 import type { Recipe, FlavorProfile } from '@/types/recipe'
-
+import FlavorRadar from '@/components/FlavorRadar.vue'
 const route = useRoute()
 const router = useRouter()
 const recipeStore = useRecipeStore()
