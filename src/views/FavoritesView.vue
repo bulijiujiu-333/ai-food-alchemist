@@ -1,21 +1,12 @@
 <template>
   <div class="favorites-container">
-    <!-- 顶部导航栏 -->
+    <!-- 顶部导航栏 - 移除了清空按钮 -->
     <div class="header">
       <button @click="goBack" class="back-btn">
         <van-icon name="arrow-left" size="20" />
       </button>
       <h1>我的收藏</h1>
-      <div class="header-actions">
-        <button 
-          v-if="hasFavorites"
-          @click="clearAllFavorites"
-          class="clear-all-btn"
-          title="清空所有收藏"
-        >
-          <van-icon name="delete" size="18" />
-        </button>
-      </div>
+      <!-- 移除 header-actions 部分 -->
     </div>
 
     <!-- 收藏列表 -->
@@ -172,20 +163,6 @@
         </button>
       </div>
     </div>
-
-    <!-- 清空确认对话框 -->
-    <van-dialog
-      v-model:show="showClearDialog"
-      title="确认清空"
-      show-cancel-button
-      @confirm="confirmClearAll"
-    >
-      <div class="dialog-content">
-        <van-icon name="warning-o" size="40" color="#FF6B6B" />
-        <p>确定要清空所有收藏吗？</p>
-        <p class="warning-text">此操作不可撤销！</p>
-      </div>
-    </van-dialog>
   </div>
 </template>
 
@@ -194,7 +171,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
 import { getRandomRecipe } from '@/services/recipeService'
-import { showToast, showConfirmDialog } from 'vant'
+import { showToast } from 'vant'
 import type { Recipe, FlavorProfile } from '@/types/recipe'
 
 const router = useRouter()
@@ -203,7 +180,6 @@ const recipeStore = useRecipeStore()
 // 状态
 const filters = ref<string[]>([])
 const sortBy = ref<string>('time')
-const showClearDialog = ref(false)
 
 // 计算属性
 const favorites = computed(() => recipeStore.favorites)
@@ -327,20 +303,6 @@ const getDifficultyClass = (difficulty: string): string => {
   return classes[difficulty] || 'medium'
 }
 
-const clearAllFavorites = () => {
-  showClearDialog.value = true
-}
-
-const confirmClearAll = () => {
-  recipeStore.favorites.forEach(recipe => {
-    if (recipeStore.isFavorite(recipe.id)) {
-      recipeStore.toggleFavorite(recipe)
-    }
-  })
-  showToast('已清空所有收藏')
-  showClearDialog.value = false
-}
-
 const showRandomRecipe = async () => {
   try {
     const recipe = await getRandomRecipe()
@@ -414,25 +376,8 @@ watch(
       background-color: rgba(0, 0, 0, 0.05);
     }
   }
-
-  .header-actions {
-    .clear-all-btn {
-      background: none;
-      border: none;
-      padding: 8px;
-      cursor: pointer;
-      color: #ff4444;
-      border-radius: 50%;
-      transition: background-color 0.3s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      &:hover {
-        background-color: rgba(255, 68, 68, 0.1);
-      }
-    }
-  }
+  
+  /* 移除 header-actions 样式 */
 }
 
 .favorites-content {
@@ -835,21 +780,6 @@ watch(
         color: #ff6b6b;
       }
     }
-  }
-}
-
-.dialog-content {
-  padding: 20px;
-  text-align: center;
-
-  p {
-    margin: 15px 0 0 0;
-    color: #333;
-  }
-
-  .warning-text {
-    color: #ff4444;
-    font-weight: 500;
   }
 }
 
