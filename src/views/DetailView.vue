@@ -105,10 +105,6 @@
         </div>
       </div>
 
-      <div v-if="recipe?.flavorProfile" class="flavor-section">
-  <FlavorRadar :data="recipe.flavorProfile" />
-</div>
-
       <!-- 制作步骤 -->
       <div class="steps-section">
         <h3 class="section-title">
@@ -136,8 +132,40 @@
           <span class="section-icon">📊</span>
           风味分析
         </h3>
-        <div class="flavor-hint">
-          <p>等待C同学的风味雷达图组件...</p>
+        
+        <!-- 如果雷达图组件可用，显示雷达图和文本 -->
+        <div v-if="flavorRadarAvailable" class="flavor-combined">
+          <div class="flavor-radar-container">
+            <FlavorRadar :data="recipe.flavorProfile" />
+          </div>
+          <div class="flavor-text-stats">
+            <div 
+              v-for="(value, key) in recipe.flavorProfile" 
+              :key="key"
+              class="flavor-stat-item"
+            >
+              <div class="flavor-info">
+                <span class="flavor-name">{{ getFlavorLabel(key) }}</span>
+                <span class="flavor-value">{{ value }}/5</span>
+              </div>
+              <div class="bar-container">
+                <div 
+                  class="bar-fill"
+                  :style="{
+                    width: `${(value / 5) * 100}%`,
+                    backgroundColor: getFlavorColor(key)
+                  }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 如果雷达图组件不可用，只显示文本 -->
+        <div v-else class="flavor-text-only">
+          <div class="flavor-hint">
+            <p>📈 风味雷达图正在制作中，敬请期待...</p>
+          </div>
           <div class="flavor-preview">
             <div 
               v-for="(value, key) in recipe.flavorProfile" 
@@ -201,7 +229,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
 import { getRecipeByIdService } from '@/services/recipeService'
 import type { Recipe, FlavorProfile } from '@/types/recipe'
-import FlavorRadar from '@/components/FlavorRadar.vue'
+
 const route = useRoute()
 const router = useRouter()
 const recipeStore = useRecipeStore()
@@ -210,6 +238,7 @@ const recipeStore = useRecipeStore()
 const recipe = ref<Recipe | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const flavorRadarAvailable = ref(true) // 默认设为true，如果有FlavorRadar组件就显示
 
 // 风味标签映射
 const flavorLabels: Record<keyof FlavorProfile, string> = {
@@ -252,6 +281,26 @@ const getFlavorLabel = (key: string): string => {
 
 const getFlavorColor = (key: string): string => {
   return flavorColors[key as keyof FlavorProfile] || '#666'
+}
+
+// 动态导入FlavorRadar组件
+let FlavorRadar: any = null
+import { defineAsyncComponent } from 'vue'
+
+try {
+  FlavorRadar = defineAsyncComponent(() => 
+    import('@/components/FlavorRadar.vue').catch(() => {
+      flavorRadarAvailable.value = false
+      return {
+        template: '<div class="radar-placeholder">雷达图组件加载中...</div>'
+      }
+    })
+  )
+} catch (error) {
+  flavorRadarAvailable.value = false
+  FlavorRadar = {
+    template: '<div class="radar-placeholder">雷达图组件暂不可用</div>'
+  }
 }
 
 // 加载菜谱数据
@@ -677,7 +726,106 @@ watch(() => route.params.id, () => {
   font-size: 15px;
 }
 
-/* 风味分析 */
+/* 风味分析区域样式 - 新增部分 */
+.flavor-combined {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+}
+
+@media (min-width: 768px) {
+  .flavor-combined {
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+  }
+}
+
+.flavor-radar-container {
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flavor-text-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.flavor-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flavor-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flavor-name {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.flavor-value {
+  font-size: 13px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.bar-container {
+  height: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.flavor-text-only {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.flavor-hint {
+  text-align: center;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(255, 249, 196, 0.3), rgba(255, 253, 231, 0.2));
+  border-radius: 15px;
+  border: 1px dashed #FFD54F;
+}
+
+.flavor-hint p {
+  color: #5D4037;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.flavor-preview {
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.flavor-bar-item {
+  margin-bottom: 15px;
+}
+
+/* 风味分析原有样式（保留但调整） */
 .flavor-hint {
   text-align: center;
   padding: 20px;
@@ -871,6 +1019,28 @@ watch(() => route.params.id, () => {
     width: 32px;
     height: 32px;
     font-size: 14px;
+  }
+  
+  /* 风味分析响应式 */
+  .flavor-combined {
+    gap: 20px;
+  }
+  
+  .flavor-radar-container {
+    height: 200px;
+  }
+  
+  .flavor-text-stats {
+    gap: 12px;
+  }
+  
+  .flavor-name {
+    font-size: 14px;
+    min-width: 35px;
+  }
+  
+  .bar-container {
+    height: 8px;
   }
 }
 </style>
