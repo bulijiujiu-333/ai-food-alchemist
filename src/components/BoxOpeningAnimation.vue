@@ -212,6 +212,8 @@ const displayedRecipeIngredients = computed(() => {
   return props.resultRecipe?.ingredients?.slice(0, 5) || []
 })
 
+
+
 // 食材转emoji
 const getIngredientEmoji = (ingredient: string): string => {
   const emojiMap: Record<string, string> = {
@@ -784,8 +786,8 @@ onUnmounted(() => {
   
   .result-card {
     position: relative;
-    width: 300px;
-    height: 200px;
+    width: 340px;
+    height: 260px;
     margin: 0 auto;
     perspective: 1000px;
     
@@ -840,34 +842,45 @@ onUnmounted(() => {
       .card-back {
         background: white;
         transform: rotateY(180deg);
-        padding: 20px;
+        padding: 24px;
         text-align: left;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        
+        overflow: hidden; 
+
         .recipe-result {
           width: 100%;
-          
+          height: 100%; 
+          display: flex;
+          flex-direction: column;
+
           .recipe-name {
-            font-size: 20px;
+            font-size: 22px;
             color: @text-primary;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             background: @primary-gradient;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            line-height: 1.3; /* 添加行高 */
+            max-height: 2.6em; /* 限制最大高度，防止过长 */
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* 最多显示2行 */
+            -webkit-box-orient: vertical;
           }
           
           .recipe-original {
             font-size: 14px;
             color: @text-secondary;
             font-style: italic;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            line-height: 1.2;
           }
           
           .recipe-meta {
             display: flex;
             gap: 20px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             
             .meta-item {
               display: flex;
@@ -883,16 +896,20 @@ onUnmounted(() => {
           }
           
           .ingredients-preview {
+            margin-bottom: 12px;
+
             h4 {
               font-size: 14px;
               color: @text-secondary;
               margin-bottom: 8px;
+              font-weight: 600;
             }
             
             .ingredients-tags {
               display: flex;
               flex-wrap: wrap;
               gap: 6px;
+              margin-bottom: 10px;
               
               .ingredient-tag {
                 background: @background-light;
@@ -900,22 +917,29 @@ onUnmounted(() => {
                 border-radius: 12px;
                 font-size: 12px;
                 color: @text-secondary;
+                white-space: nowrap;
               }
             }
           }
           
           .recipe-story {
-            margin-top: 15px;
+            margin-top: auto;
             padding: 10px;
             background: linear-gradient(135deg, #fff9c4, #fffde7);
             border-radius: 8px;
             border-left: 3px solid #ffd54f;
-            
+             max-height: 80px; /* 限制故事描述的最大高度 */
+             overflow-y: auto;
+
             p {
               font-size: 12px;
               color: #5d4037;
               line-height: 1.4;
               margin: 0;
+              display: -webkit-box;
+              -webkit-line-clamp: 3; /* 最多显示3行 */
+             -webkit-box-orient: vertical;
+              overflow: hidden;
             }
           }
         }
@@ -1005,8 +1029,8 @@ onUnmounted(() => {
   }
   
   .result-card {
-    width: 260px !important;
-    height: 180px !important;
+    width: 300px !important;
+    height: 220px !important;
   }
 }
 
@@ -1029,12 +1053,19 @@ onUnmounted(() => {
   }
   
   .result-card {
-    width: 240px !important;
-    height: 160px !important;
+    width: 280px !important;
+    height: 200px !important;
   }
-  
+
   .progress-steps {
     font-size: 12px !important;
+  }
+  .card-back {
+    padding: 20px !important; /* 移动端也保持适当内边距 */
+    
+    .recipe-name {
+      font-size: 20px !important; /* 移动端字体适当减小 */
+    }
   }
 }
 
