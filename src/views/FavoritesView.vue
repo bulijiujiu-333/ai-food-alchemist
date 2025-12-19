@@ -336,6 +336,7 @@ watch(
 </script>
 
 <style scoped lang="less">
+@import '@/assets/styles/main.less';
 .favorites-container {
   max-width: 800px;
   margin: 0 auto;
