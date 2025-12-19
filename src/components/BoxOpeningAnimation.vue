@@ -854,18 +854,19 @@ onUnmounted(() => {
           flex-direction: column;
 
           .recipe-name {
-            font-size: 22px;
+             font-size: 22px;
             color: @text-primary;
+            margin-top: -8px; 
             margin-bottom: 6px;
             background: @primary-gradient;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            line-height: 1.3; /* 添加行高 */
-            max-height: 2.6em; /* 限制最大高度，防止过长 */
+            line-height: 1.4;
+            max-height: 3em; 
             overflow: hidden;
             display: -webkit-box;
-            -webkit-line-clamp: 2; /* 最多显示2行 */
+            -webkit-line-clamp: 2; 
             -webkit-box-orient: vertical;
           }
           
