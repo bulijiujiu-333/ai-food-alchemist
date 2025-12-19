@@ -4,7 +4,7 @@
 export interface Recipe {
   id: string
   originalName: string        // 原始菜名
-  displayName: string        // 显示菜名（可能是AI生成的）
+  displayName: string        // 显示菜名（AI生成）
   description: string        // 菜谱描述
   ingredients: string[]      // 食材列表
   steps: string[]           // 制作步骤
@@ -14,6 +14,10 @@ export interface Recipe {
   cookingTime?: number      // 烹饪时间（分钟）
   difficulty?: '简单' | '中等' | '困难'  // 难度级别
   category?: string[]       // 分类标签
+
+  matchScore?: number       // 匹配分数 (0-1)
+  aiEnhanced?: boolean      // 是否经过AI增强
+  recommendationReason?: string // 推荐理由
 }
 
 // 风味评分接口
@@ -46,4 +50,15 @@ export interface AIResponse {
   displayName: string
   story: string
   flavorProfile?: FlavorProfile
+}
+
+//用户偏好类型
+export interface UserPreferences {
+  // 风味偏好（1-5分）- 可选
+  flavorPreferences?: Partial<FlavorProfile>
+
+  // 可选的其他偏好
+  dietaryRestrictions?: string[]
+  preferredCookingTime?: number
+  preferredDifficulty?: '简单' | '中等' | '困难'
 }
