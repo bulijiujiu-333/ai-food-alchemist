@@ -224,10 +224,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
 import { getRecipeByIdService } from '@/services/recipeService'
+import FlavorRadar from '@/components/FlavorRadar.vue' // ✅ 修复：同步导入
 import type { Recipe, FlavorProfile } from '@/types/recipe'
 
 const route = useRoute()
@@ -238,7 +239,7 @@ const recipeStore = useRecipeStore()
 const recipe = ref<Recipe | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
-const flavorRadarAvailable = ref(true) // 默认设为true，如果有FlavorRadar组件就显示
+const flavorRadarAvailable = ref(true) // ✅ 修复：设为true，因为组件存在
 
 // 风味标签映射
 const flavorLabels: Record<keyof FlavorProfile, string> = {
@@ -253,10 +254,10 @@ const flavorLabels: Record<keyof FlavorProfile, string> = {
 const flavorColors: Record<keyof FlavorProfile, string> = {
   savory: '#FF6B6B',
   sweet: '#4ECDC4',
-  sour: '#45B7D1',
-  spicy: '#96CEB4',
-  umami: '#FFEAA7',
-  bitter: '#DDA0DD'
+  sour: '#FFD166',
+  spicy: '#FF8E53',
+  umami: '#9D4EDD',
+  bitter: '#2A9D8F'
 }
 
 // 计算属性
@@ -283,25 +284,7 @@ const getFlavorColor = (key: string): string => {
   return flavorColors[key as keyof FlavorProfile] || '#666'
 }
 
-// 动态导入FlavorRadar组件
-let FlavorRadar: any = null
-import { defineAsyncComponent } from 'vue'
-
-try {
-  FlavorRadar = defineAsyncComponent(() => 
-    import('@/components/FlavorRadar.vue').catch(() => {
-      flavorRadarAvailable.value = false
-      return {
-        template: '<div class="radar-placeholder">雷达图组件加载中...</div>'
-      }
-    })
-  )
-} catch (error) {
-  flavorRadarAvailable.value = false
-  FlavorRadar = {
-    template: '<div class="radar-placeholder">雷达图组件暂不可用</div>'
-  }
-}
+// ✅ 修复：已移除错误的动态导入代码，改为同步导入
 
 // 加载菜谱数据
 const loadRecipe = async () => {
@@ -348,7 +331,6 @@ onMounted(() => {
 })
 
 // 监听路由变化
-import { watch } from 'vue'
 watch(() => route.params.id, () => {
   loadRecipe()
 })
