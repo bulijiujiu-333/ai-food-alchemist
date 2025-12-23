@@ -65,7 +65,7 @@
   </template>
   开始炼金！
 </PrimaryButton>
-      
+
       <!-- 提示信息 -->
       <div v-if="!hasSelectedIngredients" class="hint-text">
         请先选择至少一种食材
@@ -75,10 +75,10 @@
     <!-- 推荐结果 -->
     <div v-if="currentRecipe" class="result-section">
       <h2>✨ 炼金成果 ✨</h2>
-      
+
       <!-- 使用B同学的RecipeCard组件 -->
-      <RecipeCard 
-        :recipe="currentRecipe" 
+      <RecipeCard
+        :recipe="currentRecipe"
         @click="viewDetail(currentRecipe.id)"
         class="recipe-card-wrapper"
       />
@@ -124,12 +124,53 @@
       <p class="version">版本 v0.1.0 | A同学 × B同学 × C同学 联合打造</p>
     </div>
 
+<!-- AI思考中的等待提示 -->
+<div v-if="isAIThinking" class="ai-thinking-overlay">
+  <div class="thinking-card">
+    <div class="thinking-animation">
+      <div class="chef-icon">👨‍🍳</div>
+      <div class="steam">
+        <div class="steam-dot s1"></div>
+        <div class="steam-dot s2"></div>
+        <div class="steam-dot s3"></div>
+      </div>
+    </div>
+
+    <h3>AI大厨正在施展魔法...</h3>
+
+    <div class="fun-fact">
+      <p>💡 {{ currentFunFact }}</p>
+    </div>
+
+    <div class="loading-dots">
+      <span>.</span>
+      <span>.</span>
+      <span>.</span>
+    </div>
+
+    <div class="ai-process">
+      <div class="process-step">
+        <span class="step-icon">🔍</span>
+        <span>分析食材搭配</span>
+      </div>
+      <div class="process-step">
+        <span class="step-icon">✨</span>
+        <span>创造独特风味</span>
+      </div>
+      <div class="process-step">
+        <span class="step-icon">📖</span>
+        <span>编写美食故事</span>
+      </div>
+    </div>
+  </div>
+</div>
+
     <!-- 开盲盒动画组件 -->
 <BoxOpeningAnimation
   v-if="showAnimation"
   :visible="showAnimation"
   :ingredients="animationIngredients"
-  :resultRecipe="currentRecipe || undefined"  
+  :resultRecipe="currentRecipe || undefined"
   @close="showAnimation = false"
   @animation-complete="handleAnimationComplete"
 />
@@ -169,22 +210,56 @@ const defaultIngredients = [
   '胡萝卜', '西兰花', '黄瓜', '菠菜', '玉米'
 ]
 
+// 趣味小知识数组
+const funFacts = ref([
+  "🍅 西红柿炒鸡蛋是最受欢迎的中式家常菜！",
+  "🌶️ 青椒含有丰富的维生素C，是健康好选择",
+  "🥚 鸡蛋的蛋白质吸收率高达98%",
+  "🧂 好的调味能让简单食材变成美味佳肴",
+  "🔥 火候掌握是中式烹饪的灵魂",
+  "🔄 食材的新鲜度直接影响菜品质量",
+  "🌈 色彩搭配也能影响食欲哦",
+  "💧 少油少盐，健康饮食从今天开始",
+  "⏰ 炖煮时间越长，风味越浓郁",
+  "🧄 大蒜不仅能调味，还能杀菌",
+  "🥘 砂锅保温效果好，适合炖菜",
+  "🥗 蔬菜不宜过度烹饪以保留营养",
+  "🍲 汤要趁热喝，味道最鲜美",
+  "👨‍🍳 大厨的秘密：用心做的菜最好吃"
+])
+
+const currentFunFact = ref('')
+const isAIThinking = ref(false)
+
+// 切换小知识
+const rotateFunFact = () => {
+  const index = Math.floor(Math.random() * funFacts.value.length)
+  currentFunFact.value = funFacts.value[index]!
+  // 使用非空断言运算符 ! 告诉TypeScript这不会是undefined
+}
+
+// 在组件挂载时开始轮播
+onMounted(() => {
+  rotateFunFact() // 先显示一个
+  setInterval(rotateFunFact, 3000) // 每3秒切换
+})
+
 // 加载B同学的食材数据
 onMounted(async () => {
   try {
     loadingIngredients.value = true
     loadError.value = false
-    
+
     // ✅ 调用B同学的API
     const ingredients = await getAllIngredients()
-    
+
     if (ingredients && ingredients.length > 0) {
       // 去重并排序
       const uniqueIngredients = Array.from(new Set(ingredients))
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b, 'zh-CN'))
         .slice(0, 30) // 限制显示数量
-      
+
       availableIngredients.value = uniqueIngredients
     } else {
       // 如果返回空数组，使用默认列表
@@ -232,26 +307,39 @@ const isFavorite = (recipeId: string) => {
 // 核心：调用推荐方法
 const handleRecommend = async () => {
   if (!hasSelectedIngredients.value) return
-  
+
   try {
-    // 保存当前选择的食材用于动画
-    animationIngredients.value = [...recipeStore.selectedIngredients]
-    
-    // 显示动画
-    showAnimation.value = true
-    
-    // 原有的推荐逻辑
+    // 1. 显示等待提示
+    isAIThinking.value = true
+
+    // 2. 先调用AI获取结果（不显示动画）
     recipeStore.isLoading = true
+
+    // 给用户一点时间看到提示
+    await new Promise(resolve => setTimeout(resolve, 300))
+
     const recipe = await recipeStore.getRecommendation()
-    
-    if (recipe) {
-      recipeStore.setCurrentRecipe(recipe)
-    } else {
+
+    if (!recipe) {
       showToast('没有找到匹配的菜谱，请尝试其他食材组合')
+      isAIThinking.value = false
+      return
     }
+
+    // 3. 设置菜谱到store
+    recipeStore.setCurrentRecipe(recipe)
+
+    // 4. 隐藏等待提示，显示动画
+    isAIThinking.value = false
+
+    // 5. 保存食材并显示动画
+    animationIngredients.value = [...recipeStore.selectedIngredients]
+    showAnimation.value = true
+
   } catch (error) {
     console.error('推荐失败:', error)
     showToast('炼金失败，请稍后重试')
+    isAIThinking.value = false
   } finally {
     recipeStore.isLoading = false
   }
@@ -274,7 +362,7 @@ const showToast = (message: string, duration = 2000) => {
   `
   toast.textContent = message
   document.body.appendChild(toast)
-  
+
   // 自动关闭
   setTimeout(() => {
     toast.remove()
@@ -345,7 +433,7 @@ h1 {
   border-radius: 24px;
   padding: 30px;
   margin-bottom: 30px;
-  box-shadow: 
+  box-shadow:
     0 10px 40px rgba(0,0,0,0.08),
     inset 0 1px 0 rgba(255,255,255,0.5);
   border: 1px solid rgba(255, 107, 107, 0.1);
@@ -488,7 +576,7 @@ h1 {
   border-color: #ff6b6b;
   color: #ff6b6b;
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 
+  box-shadow:
     0 8px 20px rgba(255, 107, 107, 0.15),
     0 4px 8px rgba(0, 0, 0, 0.05);
 }
@@ -502,7 +590,7 @@ h1 {
   color: white;
   border-color: #ff6b6b;
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 
+  box-shadow:
     0 12px 30px rgba(255, 107, 107, 0.25),
     0 6px 15px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -560,7 +648,7 @@ h1 {
   border-color: #ff6b6b;
   color: #ff6b6b;
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 
+  box-shadow:
     0 8px 20px rgba(255, 107, 107, 0.15),
     0 4px 8px rgba(0, 0, 0, 0.05);
 }
@@ -574,7 +662,7 @@ h1 {
   color: white;
   border-color: #ff6b6b;
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 
+  box-shadow:
     0 12px 30px rgba(255, 107, 107, 0.25),
     0 6px 15px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -620,7 +708,7 @@ h1 {
   font-size: 22px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 
+  box-shadow:
     0 15px 35px rgba(255, 107, 107, 0.3),
     0 5px 15px rgba(0, 0, 0, 0.1);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -648,7 +736,7 @@ h1 {
 
 .recommend-btn:hover:not(:disabled) {
   transform: translateY(-6px) scale(1.05);
-  box-shadow: 
+  box-shadow:
     0 25px 50px rgba(255, 107, 107, 0.4),
     0 10px 20px rgba(0, 0, 0, 0.15);
 }
@@ -657,7 +745,7 @@ h1 {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;
-  box-shadow: 
+  box-shadow:
     0 5px 15px rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -695,13 +783,13 @@ h1 {
 }
 
 @keyframes buttonPulse {
-  0%, 100% { 
-    box-shadow: 
+  0%, 100% {
+    box-shadow:
       0 15px 35px rgba(255, 107, 107, 0.3),
       0 5px 15px rgba(0, 0, 0, 0.1);
   }
-  50% { 
-    box-shadow: 
+  50% {
+    box-shadow:
       0 20px 45px rgba(255, 107, 107, 0.4),
       0 8px 20px rgba(0, 0, 0, 0.15),
       0 0 30px rgba(255, 107, 107, 0.2);
@@ -728,13 +816,13 @@ h1 {
 }
 
 @keyframes slideUp {
-  from { 
-    opacity: 0; 
-    transform: translateY(40px) scale(0.95); 
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -871,7 +959,7 @@ h1 {
   transform: translateX(12px) translateY(-2px);
   border-color: #ff6b6b;
   color: #ff6b6b;
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(255, 107, 107, 0.1),
     0 4px 12px rgba(0, 0, 0, 0.05);
 }
@@ -978,9 +1066,202 @@ h1 {
   .footer {
     display: none;
   }
-  
+
   .ingredients-section {
     break-inside: avoid;
+  }
+}
+
+/* AI思考中的等待提示样式 */
+.ai-thinking-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.2); /* 很淡的半透明白色 */
+  backdrop-filter: blur(4px); /* 轻微模糊背景 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  animation: fadeIn 0.3s ease;
+}
+
+.thinking-card {
+  background: rgba(255, 255, 255, 0.98); /* 卡片本身比较实 */
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow:
+    0 20px 60px rgba(255, 107, 107, 0.15),
+    0 8px 25px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 107, 107, 0.1);
+  animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.thinking-animation {
+  position: relative;
+  margin: 0 auto 30px;
+  width: 100px;
+  height: 100px;
+}
+
+.chef-icon {
+  font-size: 60px;
+  animation: bounce 2s infinite;
+}
+
+.steam {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 40px;
+}
+
+.steam-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 107, 107, 0.3);
+  border-radius: 50%;
+}
+
+.steam-dot.s1 {
+  left: 10px;
+  animation: steamFloat 1.5s infinite ease-in-out;
+}
+
+.steam-dot.s2 {
+  left: 26px;
+  animation: steamFloat 1.5s infinite ease-in-out 0.2s;
+}
+
+.steam-dot.s3 {
+  left: 42px;
+  animation: steamFloat 1.5s infinite ease-in-out 0.4s;
+}
+
+h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 22px;
+  background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.fun-fact {
+  background: linear-gradient(135deg, rgba(255, 249, 196, 0.5), rgba(255, 253, 231, 0.3));
+  border-radius: 16px;
+  padding: 16px;
+  margin: 20px 0;
+  border-left: 4px solid #FFD54F;
+}
+
+.fun-fact p {
+  color: #5D4037;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  animation: fadeIn 0.8s ease;
+}
+
+.loading-dots {
+  margin: 20px 0;
+  font-size: 24px;
+  color: #FF6B6B;
+}
+
+.loading-dots span {
+  animation: dotBlink 1.4s infinite;
+  margin: 0 2px;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.ai-process {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.process-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 107, 107, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.1);
+  font-size: 14px;
+  color: #666;
+  animation: stepAppear 0.3s ease backwards;
+}
+
+.process-step:nth-child(1) { animation-delay: 0.1s; }
+.process-step:nth-child(2) { animation-delay: 0.3s; }
+.process-step:nth-child(3) { animation-delay: 0.5s; }
+
+.step-icon {
+  font-size: 18px;
+  opacity: 0.8;
+}
+
+/* 动画关键帧 */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes steamFloat {
+  0% { transform: translateY(0) scale(1); opacity: 0.3; }
+  50% { transform: translateY(-15px) scale(1.2); opacity: 0.6; }
+  100% { transform: translateY(-30px) scale(0.8); opacity: 0; }
+}
+
+@keyframes dotBlink {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+@keyframes stepAppear {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .thinking-card {
+    padding: 30px 20px;
+    width: 85%;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  .fun-fact p {
+    font-size: 14px;
+  }
+
+  .process-step {
+    font-size: 13px;
+    padding: 8px 12px;
   }
 }
 </style>
