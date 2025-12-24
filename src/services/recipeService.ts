@@ -124,7 +124,6 @@ export const getRecipeRecommendation = async (
   arg1: string[] | UserPreferences,
   arg2?: string[]
 ): Promise<Recipe | null> => {
-
   // 1. 智能解析参数
   let selectedIngredients: string[]
   let userPreferences: UserPreferences
@@ -211,6 +210,23 @@ export const getRecipeRecommendation = async (
     try {
       const aiRecipe = await generateAIRecipeFromIngredients(selectedIngredients)
       if (aiRecipe) {
+        // 验证AI生成的菜谱是否包含所有食材
+        const missingIngredients = selectedIngredients.filter(ingredient =>
+          !aiRecipe.ingredients.includes(ingredient)
+        )
+
+        if (missingIngredients.length > 0) {
+          console.warn('⚠️ AI菜谱缺失食材，进行修正:', missingIngredients)
+          // 修正食材列表
+          aiRecipe.ingredients = [...new Set([...aiRecipe.ingredients, ...selectedIngredients])]
+
+          // 修正步骤描述 - 添加安全检查
+          if (aiRecipe.steps && aiRecipe.steps.length > 0 && aiRecipe.steps[0]) {
+            aiRecipe.steps[0] = `准备食材：${aiRecipe.ingredients.join('、')}` +
+              (aiRecipe.steps[0].includes('准备') ? '' : aiRecipe.steps[0])
+          }
+        }
+
         // 对AI生成的菜谱进行创意命名增强
         const aiResponse = await enhanceRecipeWithAI(aiRecipe, selectedIngredients)
         return {
@@ -398,7 +414,6 @@ export const getRecipesByCategory = async (category: string): Promise<Recipe[]> 
   return enhancedRecipes
 }
 
-// src/services/recipeService.ts - 优化版本
 export const getAllIngredients = async (): Promise<string[]> => {
   const allIngredients = new Set<string>()
 
