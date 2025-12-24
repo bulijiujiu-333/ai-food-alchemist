@@ -121,7 +121,7 @@
     <!-- 底部信息 -->
     <div class="footer">
       <p>AI美食炼金术师 · 让每道菜都有魔法 ✨</p>
-      <p class="version">版本 v0.1.0 | A同学 × B同学 × C同学 联合打造</p>
+      <p class="version">版本 v0.1.0 | 敬韩颖 × 周吉 × 褚文洁 联合打造</p>
     </div>
 
 <!-- AI思考中的等待提示 -->
@@ -235,7 +235,7 @@ const isAIThinking = ref(false)
 const rotateFunFact = () => {
   const index = Math.floor(Math.random() * funFacts.value.length)
   currentFunFact.value = funFacts.value[index]!
-  // 使用非空断言运算符 ! 告诉TypeScript这不会是undefined
+  // 使用非空断言运算符!告诉TypeScript这不会是undefined
 }
 
 // 在组件挂载时开始轮播
@@ -317,7 +317,7 @@ const handleRecommend = async () => {
 
     // 给用户一点时间看到提示
     await new Promise(resolve => setTimeout(resolve, 300))
-
+    //调用store层推荐接口，获取AI菜谱结果
     const recipe = await recipeStore.getRecommendation()
 
     if (!recipe) {
