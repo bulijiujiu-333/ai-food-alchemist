@@ -146,32 +146,70 @@ export const getRecipeRecommendation = async (
   // 2. 智能匹配算法：计算食材匹配度
   const MIN_MATCH_THRESHOLD = 0.7 // 70%匹配度阈值
 
-  const calculateIngredientMatch = (recipe: Recipe, selectedIngredients: string[]): number => {
-    if (!recipe.ingredients || recipe.ingredients.length === 0) return 0
+  // ==================== 最佳匹配算法 ====================
+const calculateIngredientMatch = (recipe: Recipe, selectedIngredients: string[]): number => {
+  if (!recipe.ingredients || recipe.ingredients.length === 0) return 0
+  if (!selectedIngredients || selectedIngredients.length === 0) return 0
 
-    const recipeIngredients = recipe.ingredients.map(ing => ing.toLowerCase())
-    const selected = selectedIngredients.map(i => i.toLowerCase())
+  const recipeIngredients = recipe.ingredients.map(ing => ing.toLowerCase().trim())
+  const selected = selectedIngredients.map(i => i.toLowerCase().trim())
 
-    // 计算匹配的食材数量
-    let matchedCount = 0
-    selected.forEach(selectedIngredient => {
-      // 检查这个食材是否在菜谱中
-      const isMatched = recipeIngredients.some(recipeIngredient => {
-        // 更宽松但合理的匹配
-        return recipeIngredient.includes(selectedIngredient) ||
-               selectedIngredient.includes(recipeIngredient) ||
-               // 处理常见别名或相关食材
-               (selectedIngredient === '青椒' && (recipeIngredient.includes('椒') || recipeIngredient.includes('辣椒'))) ||
-               (selectedIngredient === '鸡蛋' && (recipeIngredient.includes('蛋') || recipeIngredient === '鸡蛋')) ||
-               (selectedIngredient === '西红柿' && (recipeIngredient.includes('番茄') || recipeIngredient.includes('西红柿'))) ||
-               (selectedIngredient === '土豆' && (recipeIngredient.includes('马铃薯') || recipeIngredient.includes('土豆')))
-      })
-      if (isMatched) matchedCount++
-    })
+  let matchedCount = 0
 
-    // 返回匹配比例：用户选择的食材有多少被菜谱包含
-    return selected.length > 0 ? matchedCount / selected.length : 0
-  }
+  selected.forEach(selectedIngredient => {
+    let isMatched = false
+
+    // 🎯 简化但有效的匹配逻辑
+    for (const recipeIngredient of recipeIngredients) {
+      // 1. 完全相等（最可靠）
+      if (recipeIngredient === selectedIngredient) {
+        isMatched = true
+        break
+      }
+
+      // 2. 针对特定食材的精确匹配
+      if (selectedIngredient === '豆腐' && recipeIngredient === '豆腐') {
+        isMatched = true
+        break
+      }
+
+      if (selectedIngredient === '青椒') {
+        if ((recipeIngredient === '青椒' || recipeIngredient === '辣椒') &&
+            !recipeIngredient.includes('花椒')) {
+          isMatched = true
+          break
+        }
+      }
+
+      if (selectedIngredient === '西红柿' || selectedIngredient === '番茄') {
+        if (recipeIngredient === '西红柿' || recipeIngredient === '番茄') {
+          isMatched = true
+          break
+        }
+      }
+
+      // 3. 通用的包含匹配（但要排除错误匹配）
+      if (recipeIngredient.includes(selectedIngredient) ||
+          selectedIngredient.includes(recipeIngredient)) {
+
+        // 🚨 排除一些明显的错误匹配
+        if (selectedIngredient === '青椒' && recipeIngredient.includes('花椒')) continue
+        if (selectedIngredient === '鸡蛋' && recipeIngredient.includes('蛋糕')) continue
+        if (selectedIngredient === '豆腐' && recipeIngredient.includes('豆腐乳')) continue
+
+        isMatched = true
+        break
+      }
+    }
+
+    if (isMatched) {
+      matchedCount++
+    }
+  })
+
+  const matchRatio = selected.length > 0 ? matchedCount / selected.length : 0
+  return matchRatio
+}
 
   // 3. 应用匹配度阈值
   const potentialRecipes = recipes.map(recipe => {

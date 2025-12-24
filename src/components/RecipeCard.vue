@@ -111,7 +111,7 @@
 import { computed } from 'vue'
 import type { Recipe, FlavorProfile } from '@/types/recipe'
 
-// 定义props
+//  Props 接口：限定接收的菜谱数据结构
 interface Props {
   recipe: Recipe
 }
@@ -141,19 +141,21 @@ const flavorColors = {
 }
 
 // 计算属性
+// 截断食材列表，仅展示前3项
 const displayedIngredients = computed(() => {
   return props.recipe.ingredients.slice(0, 3)
 })
-
+// 判断食材数量是否超过3项（控制「+N种」显示）
 const hasMoreIngredients = computed(() => {
   return props.recipe.ingredients.length > 3
 })
 
-// 方法
+// 工具方法（容错处理）
+// 获取风味名称（降级：无匹配时返回原始 key）
 const getFlavorLabel = (key: keyof FlavorProfile): string => {
   return flavorLabels[key] || key
 }
-
+// 获取风味颜色（降级：无匹配时返回 #666 中性色）
 const getFlavorColor = (key: keyof FlavorProfile): string => {
   return flavorColors[key as keyof typeof flavorColors] || '#666'
 }

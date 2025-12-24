@@ -1,4 +1,4 @@
-// src/services/aiService.ts - 智谱AI完整版
+// src/services/aiService.ts
 import type { Recipe, FlavorProfile } from '@/types/recipe'
 
 // ==================== 配置 ====================
@@ -10,83 +10,140 @@ const ZHIPU_CONFIG = {
 }
 
 // ==================== 智能菜品类型分析 ====================
+// ==================== 智能菜品类型分析（修复版） ====================
 const analyzeDishType = (ingredients: string[]): string => {
-  // 常见汤品/炖品食材
-  const soupIngredients = ['桂皮', '枸杞', '红枣', '当归', '黄芪', '人参', '党参',
-                          '鸡肉', '鸭肉', '排骨', '筒骨', '鲫鱼', '冬瓜', '玉米',
-                          '骨头', '瘦肉', '猪蹄', '乌鸡', '羊肉', '牛肉', '牛骨',
-                          '香菇', '木耳', '银耳', '莲子', '百合', '薏米', '芡实']
+  console.log('🧠 开始菜品类型分析，食材:', ingredients.join('、'))
 
-  // 常见凉拌/沙拉食材
-  const saladIngredients = ['黄瓜', '西红柿', '生菜', '紫甘蓝', '芝麻菜', '苦菊',
-                           '沙拉酱', '醋', '橄榄油', '柠檬', '洋葱', '胡萝卜',
-                           '青椒', '红椒', '黄椒', '香菜', '葱花', '芝麻']
+  // 🎯 定义食材分类（更加科学合理）
+  const dishCategories: Record<string, string[]> = {
+    // 汤品/炖品：需要汤类食材或炖煮类食材
+    '汤品/炖品': [
+      // 药材类
+      '桂皮', '枸杞', '红枣', '当归', '黄芪', '人参', '党参', '莲子', '百合', '薏米', '芡实',
+      // 适合炖煮的食材
+      '排骨', '筒骨', '骨头', '猪蹄', '牛骨', '乌鸡', '羊肉', '鲫鱼',
+      // 特定蔬菜（适合长时间炖煮）
+      '冬瓜', '玉米', '萝卜', '莲藕'
+    ],
 
-  // 常见炒菜食材
-  const stirFryIngredients = ['青椒', '肉丝', '鸡蛋', '土豆', '豆角', '洋葱',
-                             '大蒜', '生姜', '酱油', '蚝油', '豆豉', '腊肉',
-                             '腊肠', '香肠', '火腿', '虾仁', '鱿鱼', '花蛤']
+    // 凉拌/沙拉：明确是冷食的食材
+    '凉拌/沙拉': [
+      '黄瓜', '西红柿', '生菜', '紫甘蓝', '芝麻菜', '苦菊', '海带', '豆皮',
+      '沙拉酱', '醋', '橄榄油', '柠檬汁', '凉粉'
+    ],
 
-  // 常见蒸菜食材
-  const steamedIngredients = ['鱼', '虾', '蒸肉', '粉蒸肉', '蒸蛋', '南瓜',
-                             '排骨', '鸡肉', '豆腐', '茄子', '丝瓜', '蛤蜊']
+    // 炒菜：最常见的烹饪方式（默认）
+    '炒菜': [
+      // 蔬菜类
+      '青椒', '土豆', '豆角', '洋葱', '茄子', '西兰花', '菜花', '芹菜',
+      // 肉类
+      '肉丝', '肉片', '肉末', '牛肉', '猪肉', '鸡肉', '腊肉', '腊肠', '火腿',
+      // 蛋类
+      '鸡蛋', '鸭蛋',
+      // 其他
+      '豆腐', '豆干', '虾仁', '鱿鱼', '花蛤',
+      // 调味品（暗示炒菜）
+      '酱油', '蚝油', '豆豉', '大蒜', '生姜'
+    ],
 
-  // 常见烤/煎食材
-  const grillIngredients = ['牛排', '羊排', '鸡翅', '鸡腿', '烤肉', '烤鱼',
-                           '香肠', '培根', '土豆', '玉米', '茄子', '蘑菇']
+    // 蒸菜：适合蒸的食材
+    '蒸菜': [
+      '鱼', '虾', '蒸肉', '粉蒸肉', '蒸蛋', '南瓜', '丝瓜', '蛤蜊'
+    ],
 
-  // 统计食材类型
-  let soupCount = 0
-  let saladCount = 0
-  let stirFryCount = 0
-  let steamedCount = 0
-  let grillCount = 0
+    // 烤/煎：适合烤或煎的食材
+    '烤/煎': [
+      '牛排', '羊排', '鸡翅', '鸡腿', '烤肉', '烤鱼', '培根', '香肠'
+    ]
+  }
 
+  // 🎯 智能分析逻辑 - 使用Record确保类型安全
+  const scores: Record<string, number> = {
+    '汤品/炖品': 0,
+    '凉拌/沙拉': 0,
+    '炒菜': 0,
+    '蒸菜': 0,
+    '烤/煎': 0
+  }
+
+  // 分析每个食材
   ingredients.forEach(ingredient => {
-    const ingredientLower = ingredient.toLowerCase()
+    let matched = false
 
-    if (soupIngredients.some(soupIng =>
-      ingredient.includes(soupIng) || soupIng.includes(ingredient))) {
-      soupCount++
-    }
-    if (saladIngredients.some(saladIng =>
-      ingredient.includes(saladIng) || saladIng.includes(ingredient))) {
-      saladCount++
-    }
-    if (stirFryIngredients.some(stirFryIng =>
-      ingredient.includes(stirFryIng) || stirFryIng.includes(ingredient))) {
-      stirFryCount++
-    }
-    if (steamedIngredients.some(steamedIng =>
-      ingredient.includes(steamedIng) || steamedIng.includes(ingredient))) {
-      steamedCount++
-    }
-    if (grillIngredients.some(grillIng =>
-      ingredient.includes(grillIng) || grillIng.includes(ingredient))) {
-      grillCount++
+    // 检查每个分类
+    for (const [category, categoryIngredients] of Object.entries(dishCategories)) {
+      if (categoryIngredients.some(catIng =>
+        ingredient.includes(catIng) || catIng.includes(ingredient)
+      )) {
+        // 🎯 类型安全的增加分数
+        const currentScore = scores[category] || 0
+        scores[category] = currentScore + 1
+
+        // 🎯 特殊规则：某些食材在特定分类中权重更高
+        if (category === '炒菜' && ['青椒', '牛肉', '猪肉', '鸡肉', '豆腐'].includes(ingredient)) {
+          scores[category] = scores[category] + 0.5 // 额外权重
+        }
+
+        // 🎯 特殊规则：药材类食材强烈暗示汤品
+        if (category === '汤品/炖品' && ['桂皮', '枸杞', '红枣', '当归', '黄芪'].includes(ingredient)) {
+          scores[category] = scores[category] + 2 // 强权重
+        }
+
+        matched = true
+      }
     }
 
-    // 额外判断：包含"汤"、"煲"、"炖"等字样的食材
-    if (ingredient.includes('汤') || ingredient.includes('煲') || ingredient.includes('炖')) {
-      soupCount += 2 // 给额外权重
+    // 如果没匹配到任何分类，默认给炒菜
+    if (!matched) {
+      scores['炒菜'] = (scores['炒菜'] || 0) + 1
     }
   })
 
-  // 判断主要类型
-  const typeScores = [
-    { type: '汤品/炖品', score: soupCount },
-    { type: '凉拌/沙拉', score: saladCount },
-    { type: '炒菜', score: stirFryCount },
-    { type: '蒸菜', score: steamedCount },
-    { type: '烤/煎', score: grillCount }
-  ]
+  // 🎯 基于食材组合的智能决策
+  // 规则1：如果有肉类+蔬菜，优先考虑炒菜而不是汤
+  const hasMeat = ingredients.some(ing => ['牛肉', '猪肉', '鸡肉', '羊肉', '肉丝', '肉片', '肉末'].some(meat => ing.includes(meat)))
+  const hasVegetable = ingredients.some(ing => ['青椒', '土豆', '豆角', '洋葱', '茄子', '西兰花', '菜花'].some(veg => ing.includes(veg)))
 
-  // 按分数排序
-  typeScores.sort((a, b) => b.score - a.score)
+  if (hasMeat && hasVegetable) {
+    scores['炒菜'] = (scores['炒菜'] || 0) + 2 // 强权重：肉+菜 = 炒菜
+    scores['汤品/炖品'] = (scores['汤品/炖品'] || 0) - 1 // 减少汤的可能性
+  }
 
-  // 返回最高分的类型，如果分数为0则默认炒菜
-  const topScore = typeScores[0]
-  return topScore && topScore.score > 0 ? topScore.type : '炒菜'
+  // 规则2：如果有明显是汤料的食材（如药材），增加汤的权重
+  const hasSoupIngredients = ingredients.some(ing =>
+    ['桂皮', '枸杞', '红枣', '当归', '黄芪', '人参', '党参', '排骨', '筒骨'].some(soupIng => ing.includes(soupIng))
+  )
+  if (hasSoupIngredients) {
+    scores['汤品/炖品'] = (scores['汤品/炖品'] || 0) + 3 // 强权重
+  }
+
+  // 规则3：如果食材很少（1-2种），倾向于简单做法（凉拌或炒）
+  if (ingredients.length <= 2) {
+    // 如果是蔬菜，倾向于凉拌
+    const allVegetables = ingredients.every(ing =>
+      ['青椒', '黄瓜', '西红柿', '生菜', '紫甘蓝', '豆腐'].some(veg => ing.includes(veg))
+    )
+    if (allVegetables) {
+      scores['凉拌/沙拉'] = (scores['凉拌/沙拉'] || 0) + 1
+    } else {
+      scores['炒菜'] = (scores['炒菜'] || 0) + 1
+    }
+  }
+
+  // 🎯 找出得分最高的分类
+  let bestCategory = '炒菜' // 默认
+  let bestScore = -1
+
+  for (const [category, score] of Object.entries(scores)) {
+    console.log(`  ${category}: ${score}分`)
+    if (score > bestScore) {
+      bestScore = score
+      bestCategory = category
+    }
+  }
+
+  console.log(`🍲 智能分析结果: ${bestCategory} (总分: ${bestScore})`)
+  return bestCategory
 }
 
 // ==================== 根据菜品类型构建Prompt ====================
@@ -144,23 +201,27 @@ ${ingredients.join('、')}
 
     '炒菜': `你是一个专业的中式炒菜厨师，请根据以下食材设计一道炒菜：
 
+【特别提醒】
+如果用户选择了"青椒"和"牛肉"这类组合，应该生成"青椒炒牛肉"而不是"青椒牛肉汤"。
+炒菜是最常见的家常菜做法。
+
 【可用食材】
 ${ingredients.join('、')}
 
 【菜品要求】
-1. 菜名格式：中式炒菜名，如"青椒炒肉丝"、"西红柿炒鸡蛋"、"鱼香茄子"
-2. 描述：20-35字，描述菜品的色香味特点
-3. 步骤：炒菜步骤，包含准备、预处理、炒制、调味，要详细具体
-4. 时间：15-30分钟
+1. 菜名格式：必须是中式炒菜名，如"青椒炒牛肉"、"西红柿炒鸡蛋"、"鱼香茄子"
+2. 描述：20-35字，强调炒菜的香、鲜、嫩特点
+3. 步骤：必须是炒菜步骤，包含热锅、下油、翻炒、调味
+4. 时间：15-25分钟（炒菜时间不宜过长）
 5. 难度：简单/中等
-6. 风味：根据食材特点评分
+6. 风味：根据食材特点合理评分
 7. 分类：必须包含"炒菜"分类
 
 【返回JSON格式】
 {
-  "originalName": "${ingredients[0] || '家常'}${ingredients[1] ? '炒' + ingredients[1] : '炒菜'}",
-  "description": "色香味俱全的家常炒菜，火候恰到好处，营养均衡，下饭美味。",
-  "steps": ["将食材清洗干净并切好备用", "热锅凉油，放入葱姜蒜爆香", "依次加入食材进行翻炒", "加入酱油、盐等调味料调味", "翻炒均匀后即可出锅装盘"],
+  "originalName": "青椒炒${ingredients.find(ing => ['牛肉','猪肉','鸡肉','肉丝'].some(keyword => ing.includes(keyword))) || ingredients[0] || '菜'}",
+  "description": "香气四溢的家常炒菜，火候恰到好处，肉质鲜嫩，蔬菜爽脆。",
+  "steps": ["将食材洗净切好备用", "热锅凉油，放入葱姜蒜爆香", "先炒肉类至变色", "加入蔬菜快速翻炒", "加入酱油、盐等调味料", "翻炒均匀后出锅装盘"],
   "flavorProfile": {"savory":4, "sweet":2, "sour":2, "spicy":3, "umami":4, "bitter":1},
   "cookingTime": 20,
   "difficulty": "简单",
@@ -222,14 +283,71 @@ ${ingredients.join('、')}
     ? dishType
     : '炒菜'
 
-  return dishTypeTemplates[validDishType]! || dishTypeTemplates['炒菜']!
+  return dishTypeTemplates[validDishType]!
 }
 
+// ==================== 创意菜名验证函数 ====================
+const validateCreativeName = (
+  creativeName: string,
+  originalName: string,
+  selectedIngredients: string[]
+): string => {
+  if (!creativeName || creativeName.trim().length === 0) {
+    return originalName
+  }
+
+  const name = creativeName.trim()
+
+  // 1. 必须包含"汤"字（如果是汤品）
+  if (originalName.includes('汤') && !name.includes('汤')) {
+    console.warn('⚠️ 创意菜名缺少"汤"字，使用原菜名')
+    return originalName
+  }
+
+  // 2. 不能包含用户未选择的食材
+  const invalidIngredients = ['八角', '花椒', '辣椒', '姜片', '葱段', '大蒜']
+  if (invalidIngredients.some(ing => name.includes(ing) && !selectedIngredients.includes(ing))) {
+    console.warn(`⚠️ 创意菜名包含未选择的食材，使用原菜名`)
+    return originalName
+  }
+
+  // 3. 菜名长度合理（2-12字）
+  if (name.length < 2 || name.length > 12) {
+    console.warn('⚠️ 创意菜名长度不合理，使用原菜名')
+    return originalName
+  }
+
+  // 4. 不能与原菜名完全无关
+  const mainIngredients = selectedIngredients.slice(0, 3)
+  const hasConnection = mainIngredients.some(ing =>
+    originalName.includes(ing) || name.includes(ing)
+  )
+
+  if (!hasConnection && name.length < 3) {
+    console.warn('⚠️ 创意菜名与原菜名关联度太低，使用原菜名')
+    return originalName
+  }
+
+  return name
+}
 
 // ==================== 模拟数据（降级用） ====================
 const generateMockCreativeName = (recipe: Recipe): string => {
-  const prefixes = ['星辰', '月光', '秘境', '幻彩', '翡翠', '琥珀']
-  const suffixes = ['之恋', '协奏曲', '幻想曲', '物语', '奇缘']
+  // 根据原菜名生成合理的创意名
+  const originalName = recipe.originalName || ''
+
+  if (originalName.includes('汤')) {
+    const prefixes = ['暖心', '暖香', '星月', '翡翠', '琥珀', '秘制']
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)]
+
+    // 提取原菜名中的主要部分
+    const mainPart = originalName.replace('汤', '')
+    return `${prefix}${mainPart}汤`
+  }
+
+  // 非汤品的默认处理
+  const prefixes = ['星辰', '月光', '秘境']
+  const suffixes = ['之恋', '协奏曲', '幻想曲']
   const prefix = prefixes[Math.floor(Math.random() * prefixes.length)]
   const suffix = suffixes[Math.floor(Math.random() * suffixes.length)]
   return `${prefix}${recipe.originalName}${suffix}`
@@ -429,27 +547,34 @@ export const generateCreativeName = async (
   selectedIngredients: string[]
 ): Promise<string> => {
   try {
-    const prompt = `你是一个创意美食命名师，请为这道菜起一个吸引人的名字：
+    const dishType = analyzeDishType(selectedIngredients)
+
+    const prompt = `你是一个创意美食命名师，请为这道${dishType}起一个富有诗意且有吸引力的名字：
 
 【菜品信息】
 原菜名：${recipe.originalName}
 主要食材：${selectedIngredients.join('、')}
+菜品类型：${dishType}
 菜品描述：${recipe.description}
-烹饪时间：${recipe.cookingTime}分钟
-难度：${recipe.difficulty}
 
-【要求】
-1. 名字要独特、有趣、有诗意
-2. 长度：3-8个汉字
-3. 可以结合食材特点或烹饪方式
-4. 适合在美食推荐APP上显示
-5. 只返回菜名，不要任何解释
-6. 避免使用"秘制""招牌"等俗套词汇
+【命名要求】
+1. 名字要基于原菜名进行创意美化，但不能改变菜品的本质
+2. 如果原菜名包含主要食材，创意名也应体现这些食材
+3. 长度：3-8个汉字
+4. ${dishType.includes('汤') ? '必须包含"汤"字' : '不能包含无关的食材名'}
+5. 格式参考：
+   - 原菜名："八宝桂皮枸杞红枣汤" → 创意名："暖香八宝汤"、"桂杞红枣暖身汤"
+   - 原菜名："麻婆豆腐" → 创意名："麻辣豆腐香"、"香辣豆腐煲"
+6. 禁止使用与原菜名无关的食材名
+7. 只返回创意菜名，不要任何解释
 
 创意菜名：`
 
     const aiName = await callZhipuAI(prompt)
-    return aiName || recipe.originalName
+
+    // 验证创意菜名的合理性
+    const validName = validateCreativeName(aiName, recipe.originalName, selectedIngredients)
+    return validName || recipe.originalName
 
   } catch (error) {
     console.warn('AI命名失败，使用模拟数据')
@@ -513,60 +638,79 @@ export const generateAIRecipeFromIngredients = async (
 
       // 验证菜名是否包含主要食材
       const recipeName = aiRecipeData.originalName || ''
-      const hasAllIngredients = ingredients.every(ingredient =>
-        recipeName.includes(ingredient) || ingredient.includes('油') || ingredient.includes('盐') || ingredient.includes('糖')
+
+      // 🎯 修复：只验证主要食材（非调料）
+      const mainIngredients = ingredients.filter(ing =>
+        !['油', '盐', '糖', '酱油', '醋', '料酒', '水', '淀粉'].includes(ing)
+      )
+
+      const hasAllMainIngredients = mainIngredients.every(ingredient =>
+        recipeName.includes(ingredient)
       )
 
       // 如果没有包含主要食材，修正菜名
-      if (!hasAllIngredients && ingredients.length > 0) {
-        const mainIngredients = ingredients.filter(ing =>
-          !['油', '盐', '糖', '酱油', '醋', '料酒'].includes(ing)
-        )
-        if (mainIngredients.length >= 2) {
-          const dishSuffix = dishType === '汤品/炖品' ? '汤' :
-                            dishType === '凉拌/沙拉' ? '沙拉' :
-                            dishType === '蒸菜' ? '蒸' : '炒'
-          aiRecipeData.originalName = `${mainIngredients[0]}${mainIngredients[1]}${dishSuffix}${mainIngredients.length > 2 ? mainIngredients[2] : ''}`
+      if (!hasAllMainIngredients && mainIngredients.length > 0) {
+        // 根据菜品类型生成合适的菜名
+        let correctedName = ''
+
+        if (dishType.includes('汤')) {
+          // 汤品：主要食材 + 汤
+          const mainPart = mainIngredients.slice(0, 3).join('')
+          correctedName = mainIngredients.length >= 3
+            ? `${mainPart}汤`
+            : `${mainIngredients[0]}${mainIngredients[1] || ''}汤`
+        } else if (dishType.includes('炒')) {
+          // 炒菜：食材1+食材2+炒
+          correctedName = mainIngredients.length >= 2
+            ? `${mainIngredients[0]}${mainIngredients[1]}炒${mainIngredients[2] || ''}`
+            : `${mainIngredients[0]}炒`
+        } else {
+          correctedName = mainIngredients.slice(0, 3).join('') + '菜'
+        }
+
+        if (correctedName && correctedName !== recipeName) {
+          console.log(`🔄 修正菜名: "${recipeName}" → "${correctedName}"`)
+          aiRecipeData.originalName = correctedName
         }
       }
 
       // 验证步骤是否包含主要食材
       const stepsText = aiRecipeData.steps?.join(' ') || ''
-      const stepsHaveIngredients = ingredients.some(ingredient =>
-        stepsText.includes(ingredient) && !['油', '盐', '糖'].includes(ingredient)
+      const stepsHaveIngredients = mainIngredients.some(ingredient =>
+        stepsText.includes(ingredient)
       )
 
-      if (!stepsHaveIngredients) {
+      if (!stepsHaveIngredients && mainIngredients.length > 0) {
         type ValidDishType = '汤品/炖品' | '凉拌/沙拉' | '炒菜' | '蒸菜' | '烤/煎';
         // 修正步骤，确保包含主要食材
         const dishSteps = {
           '汤品/炖品': [
             `准备${ingredients.join('、')}`,
-            `将${ingredients[0]}和${ingredients[1] || '其他食材'}清洗干净`,
+            `将${mainIngredients[0]}和${mainIngredients[1] || '其他食材'}清洗干净`,
             `加入适量清水炖煮`,
             `调味后慢炖至食材软烂`
           ],
           '凉拌/沙拉': [
             `准备${ingredients.join('、')}`,
-            `将${ingredients[0]}和${ingredients[1] || '其他食材'}清洗切配`,
+            `将${mainIngredients[0]}和${mainIngredients[1] || '其他食材'}清洗切配`,
             `调制酱汁拌匀`,
             `装盘即可食用`
           ],
           '炒菜': [
             `准备${ingredients.join('、')}`,
-            `将${ingredients[0]}和${ingredients[1] || '其他食材'}处理干净`,
-            `热锅加油，依次加入${ingredients.filter(ing => !['油', '盐', '糖'].includes(ing)).join('、')}`,
+            `将${mainIngredients[0]}和${mainIngredients[1] || '其他食材'}处理干净`,
+            `热锅加油，依次加入${mainIngredients.join('、')}`,
             `翻炒均匀，调味后即可出锅`
           ],
           '蒸菜': [
             `准备${ingredients.join('、')}`,
-            `将${ingredients[0]}和${ingredients[1] || '其他食材'}处理腌制`,
+            `将${mainIngredients[0]}和${mainIngredients[1] || '其他食材'}处理腌制`,
             `上锅蒸制`,
             `蒸好后淋汁调味`
           ],
           '烤/煎': [
             `准备${ingredients.join('、')}`,
-            `将${ingredients[0]}和${ingredients[1] || '其他食材'}腌制入味`,
+            `将${mainIngredients[0]}和${mainIngredients[1] || '其他食材'}腌制入味`,
             `预热后烤/煎制`,
             `烤/煎至金黄熟透`
           ]
@@ -583,7 +727,7 @@ export const generateAIRecipeFromIngredients = async (
       const tempRecipe: Recipe = {
         id: recipeId,
         originalName: aiRecipeData.originalName,
-        displayName: aiRecipeData.originalName,
+        displayName: aiRecipeData.originalName, // 先使用原菜名
         description: aiRecipeData.description,
         ingredients: ingredients,
         steps: aiRecipeData.steps,
@@ -592,6 +736,21 @@ export const generateAIRecipeFromIngredients = async (
         difficulty: aiRecipeData.difficulty as '简单' | '中等' | '困难',
         category: aiRecipeData.category,
         aiEnhanced: true
+      }
+
+      // 🎯 先生成创意菜名，但验证合理性
+      let displayName = tempRecipe.originalName
+      try {
+        const creativeName = await generateCreativeName(tempRecipe, ingredients)
+        // 验证创意菜名
+        if (creativeName &&
+            creativeName !== tempRecipe.originalName &&
+            validateCreativeName(creativeName, tempRecipe.originalName, ingredients)) {
+          displayName = creativeName
+          console.log(`🎨 创意命名成功: "${tempRecipe.originalName}" → "${displayName}"`)
+        }
+      } catch (nameError) {
+        console.warn('创意命名失败，使用原菜名:', nameError)
       }
 
       // 生成风味故事
@@ -606,6 +765,7 @@ export const generateAIRecipeFromIngredients = async (
       // 构建完整的Recipe对象
       const aiGeneratedRecipe: Recipe = {
         ...tempRecipe,
+        displayName: displayName, // 使用验证后的创意名或原菜名
         story: story,
         matchScore: 0.7,
         recommendationReason: `AI根据您的食材智能推荐${dishType}`
