@@ -511,6 +511,7 @@ onUnmounted(() => {
       }
     }
     
+    
     .cauldron {
       position: relative;
       width: 140px;
@@ -863,11 +864,11 @@ onUnmounted(() => {
             -webkit-text-fill-color: transparent;
             background-clip: text;
             line-height: 1.4;
-            max-height: 3em; 
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2; 
-            -webkit-box-orient: vertical;
+            max-height: none; 
+            overflow: visible;
+            display: block;
+            -webkit-line-clamp: unset; 
+            //-webkit-box-orient: vertical;
           }
           
           .recipe-original {
