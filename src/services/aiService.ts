@@ -577,18 +577,19 @@ interface AICreativeResponse {
 
 export const generateAICreativeContent = async (
   recipe: Recipe,
-  selectedIngredients: string[]
+  selectedIngredients: string[],
+  dishType?: string
 ): Promise<AICreativeResponse> => {
   try {
-    const dishType = analyzeDishType(selectedIngredients)
+    const finalDishType = dishType || analyzeDishType(selectedIngredients)
 
-    // 修改创意命名部分的prompt
-const combinedPrompt = `你是一位顶尖的美食创意师，请为这道${dishType}设计一个惊艳的创意名字和引人入胜的风味故事：
+    // 创意命名部分的prompt
+const combinedPrompt = `你是一位顶尖的美食创意师，请为这道${finalDishType}设计一个惊艳的创意名字和引人入胜的风味故事：
 
 【菜品基本信息】
 原菜名：${recipe.originalName}
 主要食材：${selectedIngredients.join('、')}
-菜品类型：${dishType}
+菜品类型：${finalDishType}
 菜品特点：${recipe.description}
 
 【创意命名要求】（发挥你的创意才华！）
@@ -670,22 +671,24 @@ const combinedPrompt = `你是一位顶尖的美食创意师，请为这道${dis
 // ==================== 对外暴露的API函数（保持兼容性） ====================
 export const generateCreativeName = async (
   recipe: Recipe,
-  selectedIngredients: string[]
+  selectedIngredients: string[],
+  dishType?: string
 ): Promise<string> => {
-  const response = await generateAICreativeContent(recipe, selectedIngredients)
+   const response = await generateAICreativeContent(recipe, selectedIngredients, dishType)
   return response.creativeName
 }
 
 export const generateFlavorStory = async (
   recipe: Recipe,
-  selectedIngredients: string[]
+  selectedIngredients: string[],
+  dishType?: string
 ): Promise<string> => {
-  const response = await generateAICreativeContent(recipe, selectedIngredients)
+  const response = await generateAICreativeContent(recipe, selectedIngredients, dishType)
   return response.flavorStory
 }
 
 
-// ==================== 健壮的JSON解析函数 ====================
+// ==================== JSON解析函数 ====================
 const parseAIResponse = (aiResponse: string): any => {
   try {
     console.log('🔍 尝试解析AI响应:', aiResponse.substring(0, 100) + '...')
@@ -753,7 +756,7 @@ const parseAIResponse = (aiResponse: string): any => {
   }
 }
 
-// ==================== AI菜谱生成主函数（优化版） ====================
+// ==================== AI菜谱生成主函数 ====================
 export const generateAIRecipeFromIngredients = async (
   ingredients: string[]
 ): Promise<Recipe | null> => {
@@ -768,7 +771,6 @@ export const generateAIRecipeFromIngredients = async (
     const aiResponse = await callZhipuAI(prompt)
     console.log('🔍 AI原始响应:', aiResponse)
 
-    // 使用健壮的JSON解析
     try {
       const aiRecipeData = parseAIResponse(aiResponse)
 

@@ -1,4 +1,4 @@
-<!-- src/views/HomeView.vue - 最终修复版 -->
+<!-- src/views/HomeView.vue -->
 <template>
   <div class="home">
     <h1>🍳 AI美食炼金术师</h1>
@@ -182,9 +182,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
-// ✅ 导入B同学的服务
+// 导入B同学的服务
 import { getAllIngredients } from '@/services/recipeService'
-// ✅ 导入B同学的RecipeCard组件
+// 导入B同学的RecipeCard组件
 import RecipeCard from '@/components/RecipeCard.vue'
 import BoxOpeningAnimation from '@/components/BoxOpeningAnimation.vue'
 import PrimaryButton from '@/components/PrimaryButton.vue'
@@ -250,7 +250,7 @@ onMounted(async () => {
     loadingIngredients.value = true
     loadError.value = false
 
-    // ✅ 调用B同学的API
+    // 调用B同学的API
     const ingredients = await getAllIngredients()
 
     if (ingredients && ingredients.length > 0) {
@@ -304,7 +304,7 @@ const isFavorite = (recipeId: string) => {
   return recipeStore.isFavorite(recipeId)
 }
 
-// 核心：调用推荐方法
+// 调用推荐方法
 const handleRecommend = async () => {
   if (!hasSelectedIngredients.value) return
 

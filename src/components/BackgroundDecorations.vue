@@ -3,7 +3,7 @@
   <div class="background-decorations" :class="{ 'home': isHomePage }">
     <!-- 背景渐变层 -->
     <div class="bg-gradient-layer"></div>
-    
+
     <!-- 厨房用具装饰 -->
     <div class="kitchen-utensils">
       <div class="utensil spoon" :style="getUtensilStyle(0)">🥄</div>
@@ -13,22 +13,22 @@
       <div class="utensil bowl" :style="getUtensilStyle(4)">🥣</div>
       <div class="utensil whisk" :style="getUtensilStyle(5)">🥢</div>
     </div>
-    
+
     <!-- 浮动食材图标 -->
     <div class="floating-ingredients">
       <div class="ingredient" v-for="n in 12" :key="n" :style="getIngredientStyle(n)">
         {{ getRandomIngredientEmoji() }}
       </div>
     </div>
-    
+
     <!-- 魔法粒子效果 -->
     <div class="magic-particles">
       <div class="particle" v-for="n in particleCount" :key="n" :style="getParticleStyle(n)"></div>
     </div>
-    
+
     <!-- 网格线背景 -->
     <div class="grid-overlay"></div>
-    
+
     <!-- 角落装饰 -->
     <div class="corner-decoration top-left">
       <div class="decoration-leaf leaf-1">🍃</div>
@@ -89,14 +89,14 @@ const getUtensilStyle = (index: number) => {
     { top: '85%', left: '15%', size: '38px' },
     { top: '90%', right: '5%', size: '42px' }
   ]
-  
+
   // 确保索引在数组范围内
   const safeIndex = Math.min(index, positions.length - 1)
   const pos = positions[safeIndex]!
-  
+
   const rotation = Math.random() * 20 - 10
   const delay = index * 0.5
-  
+
   return {
     top: pos.top,
     left: pos.left || 'auto',
@@ -115,7 +115,7 @@ const getIngredientStyle = (index: number) => {
   const duration = 15 + Math.random() * 15
   const delay = Math.random() * 3
   const rotation = Math.random() * 720
-  
+
   return {
     left: `${left}%`,
     top: `${top}%`,
@@ -135,7 +135,7 @@ const getParticleStyle = (index: number) => {
   const duration = 20 + Math.random() * 10
   const delay = Math.random() * 5
   const opacity = 0.1 + Math.random() * 0.2
-  
+
   // 随机颜色 - 美食主题色系
   const colors: readonly string[] = [
     'rgba(255, 107, 107, VAR_OPACITY)',   // 主红色
@@ -145,11 +145,11 @@ const getParticleStyle = (index: number) => {
     'rgba(157, 78, 221, VAR_OPACITY)',    // 紫色
     'rgba(42, 157, 143, VAR_OPACITY)'     // 绿色
   ]
-  
+
   const randomIndex = Math.floor(Math.random() * colors.length)
   const colorTemplate = colors[randomIndex] || 'rgba(255, 107, 107, VAR_OPACITY)'
   const finalColor = colorTemplate.replace('VAR_OPACITY', opacity.toString())
-  
+
   return {
     left: `${left}%`,
     top: `${top}%`,
@@ -190,7 +190,7 @@ onUnmounted(() => {
   z-index: -1; // 确保在内容后面
   pointer-events: none; // 不干扰交互
   overflow: hidden;
-  
+
   // 首页特殊背景
   &.home {
     .bg-gradient-layer {
@@ -204,7 +204,7 @@ onUnmounted(() => {
       );
     }
   }
-  
+
   // 背景渐变层
   .bg-gradient-layer {
     position: absolute;
@@ -218,7 +218,7 @@ onUnmounted(() => {
       rgba(245, 247, 250, 0.9) 50%,
       rgba(248, 249, 250, 0.95) 100%
     );
-    
+
     &::before {
       content: '';
       position: absolute;
@@ -226,14 +226,14 @@ onUnmounted(() => {
       left: 0;
       right: 0;
       bottom: 0;
-      background-image: 
+      background-image:
         radial-gradient(circle at 20% 80%, rgba(255, 107, 107, 0.05) 0%, transparent 50%),
         radial-gradient(circle at 80% 20%, rgba(78, 205, 196, 0.05) 0%, transparent 50%),
         radial-gradient(circle at 40% 40%, rgba(255, 209, 102, 0.03) 0%, transparent 50%);
       background-size: 100% 100%;
     }
   }
-  
+
   // 厨房用具
   .kitchen-utensils {
     .utensil {
@@ -241,7 +241,7 @@ onUnmounted(() => {
       opacity: 0.15;
       animation: floatUtensil 20s ease-in-out infinite;
       filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
-      
+
       &.spoon { animation-delay: 0s; }
       &.fork { animation-delay: 2s; }
       &.knife { animation-delay: 4s; }
@@ -250,7 +250,7 @@ onUnmounted(() => {
       &.whisk { animation-delay: 10s; }
     }
   }
-  
+
   // 浮动食材
   .floating-ingredients {
     .ingredient {
@@ -261,7 +261,7 @@ onUnmounted(() => {
       filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.1));
     }
   }
-  
+
   // 魔法粒子
   .magic-particles {
     .particle {
@@ -271,7 +271,7 @@ onUnmounted(() => {
       will-change: transform;
     }
   }
-  
+
   // 网格线背景
   .grid-overlay {
     position: absolute;
@@ -279,38 +279,38 @@ onUnmounted(() => {
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: 
+    background-image:
       linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
     background-size: 50px 50px;
     opacity: 0.5;
     mask-image: radial-gradient(circle at center, black, transparent 70%);
   }
-  
+
   // 角落装饰
   .corner-decoration {
     position: absolute;
-    
+
     &.top-left {
       top: 20px;
       left: 20px;
     }
-    
+
     &.top-right {
       top: 20px;
       right: 20px;
     }
-    
+
     &.bottom-left {
       bottom: 20px;
       left: 20px;
     }
-    
+
     &.bottom-right {
       bottom: 20px;
       right: 20px;
     }
-    
+
     .decoration-leaf,
     .decoration-star,
     .decoration-herb,
@@ -319,29 +319,29 @@ onUnmounted(() => {
       font-size: 24px;
       opacity: 0.2;
       animation: gentleSway 8s ease-in-out infinite;
-      
+
       &.leaf-1 { animation-delay: 0s; }
-      &.leaf-2 { 
+      &.leaf-2 {
         transform: translate(15px, 15px) rotate(45deg);
-        animation-delay: 2s; 
+        animation-delay: 2s;
       }
-      
+
       &.star-1 { animation-delay: 1s; }
-      &.star-2 { 
+      &.star-2 {
         transform: translate(-15px, 15px) rotate(-45deg);
-        animation-delay: 3s; 
+        animation-delay: 3s;
       }
-      
+
       &.herb-1 { animation-delay: 0.5s; }
-      &.herb-2 { 
+      &.herb-2 {
         transform: translate(15px, -15px) rotate(30deg);
-        animation-delay: 2.5s; 
+        animation-delay: 2.5s;
       }
-      
+
       &.spice-1 { animation-delay: 1.5s; }
-      &.spice-2 { 
+      &.spice-2 {
         transform: translate(-15px, -15px) rotate(-30deg);
-        animation-delay: 3.5s; 
+        animation-delay: 3.5s;
       }
     }
   }
@@ -432,7 +432,7 @@ onUnmounted(() => {
     .utensil {
       display: none;
     }
-    
+
     // 浮动食材
 .floating-ingrssients {
   .ingredient {
@@ -441,7 +441,7 @@ onUnmounted(() => {
     animation: floatIngredient linear infinite;
     will-change: transform;
     filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.2));  // 增加阴影强度
-    
+
     // 添加悬停效果
     &:hover {
       opacity: 0.4;
@@ -449,7 +449,7 @@ onUnmounted(() => {
     }
   }
 }
-    
+
     .corner-decoration {
       .decoration-leaf,
       .decoration-star,
@@ -458,42 +458,11 @@ onUnmounted(() => {
         font-size: 18px;
       }
     }
-    
+
     .grid-overlay {
       background-size: 30px 30px;
     }
   }
 }
 
-// 深色模式适配
-@media (prefers-color-scheme: dark) {
-  .background-decorations {
-    .bg-gradient-layer {
-      background: linear-gradient(
-        135deg,
-        rgba(30, 30, 40, 0.95) 0%,
-        rgba(40, 40, 50, 0.9) 50%,
-        rgba(30, 30, 40, 0.95) 100%
-      );
-      
-      &::before {
-        background-image: 
-          radial-gradient(circle at 20% 80%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(78, 205, 196, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 40% 40%, rgba(255, 209, 102, 0.08) 0%, transparent 50%);
-      }
-    }
-    
-    .grid-overlay {
-      background-image: 
-        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    }
-    
-    .utensil,
-    .ingredient {
-      filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
-    }
-  }
-}
 </style>
