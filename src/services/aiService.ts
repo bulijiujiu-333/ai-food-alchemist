@@ -9,9 +9,19 @@ const ZHIPU_CONFIG = {
   timeout: 15000 // 15秒超时
 }
 
-// ==================== 智能菜品类型分析 ====================
-// ==================== 智能菜品类型分析（修复版） ====================
+// ==================== 缓存机制 ====================
+const dishTypeCache = new Map<string, string>()
+
+// ==================== 智能菜品类型分析（带缓存） ====================
 const analyzeDishType = (ingredients: string[]): string => {
+  const cacheKey = ingredients.sort().join(',')
+
+  if (dishTypeCache.has(cacheKey)) {
+    const cachedType = dishTypeCache.get(cacheKey)!
+    console.log(`🧠 使用缓存的菜品类型: ${cachedType} (食材: ${ingredients.join('、')})`)
+    return cachedType
+  }
+
   console.log('🧠 开始菜品类型分析，食材:', ingredients.join('、'))
 
   // 🎯 定义食材分类（更加科学合理）
@@ -143,6 +153,10 @@ const analyzeDishType = (ingredients: string[]): string => {
   }
 
   console.log(`🍲 智能分析结果: ${bestCategory} (总分: ${bestScore})`)
+
+  // 存入缓存
+  dishTypeCache.set(cacheKey, bestCategory)
+
   return bestCategory
 }
 
@@ -484,145 +498,267 @@ const createAIFallbackRecipe = (ingredients: string[]): Recipe => {
   }
 }
 
-// ==================== 核心AI调用函数 ====================
-const callZhipuAI = async (prompt: string): Promise<string> => {
+// ==================== 核心AI调用函数（带重试） ====================
+const callZhipuAI = async (prompt: string, retries = 2): Promise<string> => {
   // 安全检查：API Key是否存在
   if (!ZHIPU_CONFIG.apiKey || ZHIPU_CONFIG.apiKey === '你的智谱API_Key_在这里') {
     console.warn('⚠️ 智谱API Key未配置，将使用模拟数据')
     throw new Error('AI_API_KEY_NOT_SET')
   }
 
-  try {
-    console.log('🧠 正在调用智谱AI...')
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      console.log(`🧠 正在调用智谱AI... (尝试 ${attempt + 1}/${retries + 1})`)
 
-    const response = await fetch(`${ZHIPU_CONFIG.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ZHIPU_CONFIG.apiKey}`
-      },
-      body: JSON.stringify({
-        model: ZHIPU_CONFIG.model,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.8, // 创意度
-        max_tokens: 500,  // 最大长度
-        stream: false     // 非流式响应
+      const response = await fetch(`${ZHIPU_CONFIG.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ZHIPU_CONFIG.apiKey}`
+        },
+        body: JSON.stringify({
+          model: ZHIPU_CONFIG.model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.8, // 创意度
+          max_tokens: 500,  // 最大长度
+          stream: false     // 非流式响应
+        }),
+        signal: AbortSignal.timeout(ZHIPU_CONFIG.timeout)
       })
-    })
 
-    // 检查HTTP状态
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ AI API响应错误:', response.status, errorText)
-      throw new Error(`API_${response.status}`)
+      // 检查HTTP状态
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ AI API响应错误:', response.status, errorText)
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+          continue
+        }
+        throw new Error(`API_${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // 提取AI生成的内容
+      const content = data.choices?.[0]?.message?.content?.trim()
+
+      if (!content) {
+        console.warn('⚠️ AI返回内容为空')
+        if (attempt < retries) continue
+        throw new Error('AI_EMPTY_RESPONSE')
+      }
+
+      console.log('✅ 智谱AI调用成功，生成内容长度:', content.length)
+      return content
+
+    } catch (error: any) {
+      console.error(`❌ 智谱AI调用失败 (尝试 ${attempt + 1}):`, error.message)
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+        continue
+      }
+      throw error // 向上抛出，让上层处理降级
+    }
+  }
+
+  throw new Error('AI_CALL_FAILED_AFTER_RETRIES')
+}
+
+// ==================== 批量AI生成函数 ====================
+interface AICreativeResponse {
+  creativeName: string
+  flavorStory: string
+}
+
+export const generateAICreativeContent = async (
+  recipe: Recipe,
+  selectedIngredients: string[]
+): Promise<AICreativeResponse> => {
+  try {
+    const dishType = analyzeDishType(selectedIngredients)
+
+    // 修改创意命名部分的prompt
+const combinedPrompt = `你是一位顶尖的美食创意师，请为这道${dishType}设计一个惊艳的创意名字和引人入胜的风味故事：
+
+【菜品基本信息】
+原菜名：${recipe.originalName}
+主要食材：${selectedIngredients.join('、')}
+菜品类型：${dishType}
+菜品特点：${recipe.description}
+
+【创意命名要求】（发挥你的创意才华！）
+1. 创意级别：★★★★★（最高级别）
+2. 灵感来源：可以从以下角度思考：
+   - 诗意/文学：《诗经》、唐诗宋词的意境
+   - 自然景观：山川湖海、星辰月夜
+   - 艺术美感：色彩搭配、质感描述
+   - 情感表达：乡愁、温暖、幸福、浪漫
+3. 命名格式参考：
+   - 四字格："青峦映雪"、"翠玉鸣金"、"琥珀流光"
+   - 五字格："月光映牛肉"、"星辰炒青椒"
+   - 六字格："翡翠青椒炒肉"、"琥珀牛肉香韵"
+4. 避免：直接使用食材名拼接（如"牛肉青椒炒"）
+5. 长度：3-6个汉字最佳
+
+【风味故事要求】
+写一段25-35字的诗意美食故事，要：
+1. 有画面感：让读者仿佛看到、闻到、尝到
+2. 有情感：温暖、治愈、怀旧、浪漫任选其一
+3. 有文学性：像美食散文一样优美
+
+【返回格式】
+请严格返回JSON格式：
+{
+  "creativeName": "你的创意菜名",
+  "flavorStory": "你的风味故事"
+}
+
+示例（灵感参考）：
+- 原菜名"西红柿炒鸡蛋" → 创意名"金玉满堂"、"朝霞映雪"
+- 原菜名"红烧肉" → 创意名"琥珀流光"、"朱砂暖玉"
+- 原菜名"清蒸鱼" → 创意名"碧波游龙"、"月光清影"
+
+现在请为"${recipe.originalName}"创作：`
+
+    const aiResponse = await callZhipuAI(combinedPrompt)
+
+    try {
+      const creativeContent = parseAIResponse(aiResponse)
+
+      // 验证返回的数据结构
+      if (!creativeContent || typeof creativeContent !== 'object') {
+        throw new Error('AI返回的不是有效的对象')
+      }
+
+      if (!creativeContent.creativeName || !creativeContent.flavorStory) {
+        console.warn('AI返回的数据结构不完整:', creativeContent)
+      }
+
+      // 验证创意菜名
+      const validName = validateCreativeName(
+        creativeContent.creativeName || '',
+        recipe.originalName,
+        selectedIngredients
+      )
+
+      return {
+        creativeName: validName || recipe.originalName,
+        flavorStory: creativeContent.flavorStory || ''
+      }
+    } catch (parseError) {
+      console.warn('解析AI创意内容失败，使用模拟数据', parseError)
+      return {
+        creativeName: generateMockCreativeName(recipe),
+        flavorStory: generateMockFlavorStory(recipe)
+      }
     }
 
-    const data = await response.json()
-
-    // 提取AI生成的内容
-    const content = data.choices?.[0]?.message?.content?.trim()
-
-    if (!content) {
-      console.warn('⚠️ AI返回内容为空')
-      throw new Error('AI_EMPTY_RESPONSE')
+  } catch (error) {
+    console.warn('AI创意内容生成失败，使用模拟数据', error)
+    return {
+      creativeName: generateMockCreativeName(recipe),
+      flavorStory: generateMockFlavorStory(recipe)
     }
-
-    console.log('✅ 智谱AI调用成功，生成内容长度:', content.length)
-    return content
-
-  } catch (error: any) {
-    console.error('❌ 智谱AI调用失败:', error.message)
-    throw error // 向上抛出，让上层处理降级
   }
 }
 
-// ==================== 创意菜名生成 ====================
+// ==================== 对外暴露的API函数（保持兼容性） ====================
 export const generateCreativeName = async (
   recipe: Recipe,
   selectedIngredients: string[]
 ): Promise<string> => {
-  try {
-    const dishType = analyzeDishType(selectedIngredients)
-
-    const prompt = `你是一个创意美食命名师，请为这道${dishType}起一个富有诗意且有吸引力的名字：
-
-【菜品信息】
-原菜名：${recipe.originalName}
-主要食材：${selectedIngredients.join('、')}
-菜品类型：${dishType}
-菜品描述：${recipe.description}
-
-【命名要求】
-1. 名字要基于原菜名进行创意美化，但不能改变菜品的本质
-2. 如果原菜名包含主要食材，创意名也应体现这些食材
-3. 长度：3-8个汉字
-4. ${dishType.includes('汤') ? '必须包含"汤"字' : '不能包含无关的食材名'}
-5. 格式参考：
-   - 原菜名："八宝桂皮枸杞红枣汤" → 创意名："暖香八宝汤"、"桂杞红枣暖身汤"
-   - 原菜名："麻婆豆腐" → 创意名："麻辣豆腐香"、"香辣豆腐煲"
-6. 禁止使用与原菜名无关的食材名
-7. 只返回创意菜名，不要任何解释
-
-创意菜名：`
-
-    const aiName = await callZhipuAI(prompt)
-
-    // 验证创意菜名的合理性
-    const validName = validateCreativeName(aiName, recipe.originalName, selectedIngredients)
-    return validName || recipe.originalName
-
-  } catch (error) {
-    console.warn('AI命名失败，使用模拟数据')
-    return generateMockCreativeName(recipe)
-  }
+  const response = await generateAICreativeContent(recipe, selectedIngredients)
+  return response.creativeName
 }
 
-// ==================== 风味故事生成 ====================
 export const generateFlavorStory = async (
   recipe: Recipe,
   selectedIngredients: string[]
 ): Promise<string> => {
+  const response = await generateAICreativeContent(recipe, selectedIngredients)
+  return response.flavorStory
+}
+
+
+// ==================== 健壮的JSON解析函数 ====================
+const parseAIResponse = (aiResponse: string): any => {
   try {
-    const prompt = `你是一个美食作家，请为这道菜写一段风味故事：
+    console.log('🔍 尝试解析AI响应:', aiResponse.substring(0, 100) + '...')
 
-【菜品信息】
-菜名：${recipe.originalName}
-食材：${selectedIngredients.join('、')}
-做法简述：${recipe.description}
-口味特点：${Object.entries(recipe.flavorProfile || {})
-  .map(([k, v]) => `${k}:${v}/5`)
-  .join('，')}
+    // 情况1：直接解析
+    try {
+      return JSON.parse(aiResponse)
+    } catch (e) {
+      // 继续尝试其他方法
+    }
 
-【要求】
-1. 写一段20-30字的美食故事
-2. 描述菜品的风味、口感、香气
-3. 可以有点诗意、幽默或哲学意味
-4. 让读者感受到这道菜的独特魅力
-5. 用中文，口语化，有温度
-6. 只返回故事内容，不要标题
+    // 情况2：清理markdown代码块
+    let cleanedResponse = aiResponse.trim()
 
-风味故事：`
+    // 移除开头的 ```json 或 ``` 标记
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.substring(7).trim()
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.substring(3).trim()
+    }
 
-    const story = await callZhipuAI(prompt)
-    return story || ''
+    // 移除结尾的 ``` 标记
+    if (cleanedResponse.endsWith('```')) {
+      cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length - 3).trim()
+    }
+
+    console.log('🧹 清理后的响应:', cleanedResponse.substring(0, 100) + '...')
+
+    // 尝试解析清理后的内容
+    try {
+      return JSON.parse(cleanedResponse)
+    } catch (e) {
+      // 继续尝试其他方法
+    }
+
+    // 情况3：查找JSON对象（处理可能的前后文本）
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0])
+      } catch (e) {
+        console.warn('⚠️ 找到疑似JSON但解析失败:', e)
+      }
+    }
+
+    // 情况4：尝试修复常见的JSON格式问题
+    let fixedResponse = cleanedResponse
+      .replace(/(\w+):/g, '"$1":')  // 修复未加引号的键
+      .replace(/'/g, '"')           // 单引号转双引号
+      .replace(/,\s*}/g, '}')       // 移除尾随逗号
+      .replace(/,\s*]/g, ']')       // 移除数组尾随逗号
+
+    try {
+      return JSON.parse(fixedResponse)
+    } catch (e) {
+      console.warn('⚠️ JSON修复后仍然解析失败:', e)
+    }
+
+    // 所有方法都失败
+    throw new Error('无法解析AI响应为有效的JSON')
 
   } catch (error) {
-    console.warn('AI故事生成失败，使用模拟数据')
-    return generateMockFlavorStory(recipe)
+    console.error('❌ JSON解析失败:', error)
+    throw error
   }
 }
 
-// ==================== AI菜谱生成主函数 ====================
+// ==================== AI菜谱生成主函数（优化版） ====================
 export const generateAIRecipeFromIngredients = async (
   ingredients: string[]
 ): Promise<Recipe | null> => {
   try {
-    // 1. 智能分析菜品类型
+    // 1. 智能分析菜品类型（带缓存）
     const dishType = analyzeDishType(ingredients)
     console.log(`🍲 智能分析菜品类型: ${dishType} (基于食材: ${ingredients.join('、')})`)
 
@@ -632,9 +768,9 @@ export const generateAIRecipeFromIngredients = async (
     const aiResponse = await callZhipuAI(prompt)
     console.log('🔍 AI原始响应:', aiResponse)
 
-    // 解析AI返回的JSON
+    // 使用健壮的JSON解析
     try {
-      const aiRecipeData = JSON.parse(aiResponse)
+      const aiRecipeData = parseAIResponse(aiResponse)
 
       // 验证菜名是否包含主要食材
       const recipeName = aiRecipeData.originalName || ''
@@ -723,11 +859,11 @@ export const generateAIRecipeFromIngredients = async (
       // 生成唯一的ID
       const recipeId = `ai-generated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-      // 构建临时Recipe对象用于生成故事
+      // 构建临时Recipe对象
       const tempRecipe: Recipe = {
         id: recipeId,
         originalName: aiRecipeData.originalName,
-        displayName: aiRecipeData.originalName, // 先使用原菜名
+        displayName: aiRecipeData.originalName,
         description: aiRecipeData.description,
         ingredients: ingredients,
         steps: aiRecipeData.steps,
@@ -738,34 +874,27 @@ export const generateAIRecipeFromIngredients = async (
         aiEnhanced: true
       }
 
-      // 🎯 先生成创意菜名，但验证合理性
+      // 3. 批量生成创意内容（一次性完成）
       let displayName = tempRecipe.originalName
+      let story = ''
+
       try {
-        const creativeName = await generateCreativeName(tempRecipe, ingredients)
-        // 验证创意菜名
-        if (creativeName &&
-            creativeName !== tempRecipe.originalName &&
-            validateCreativeName(creativeName, tempRecipe.originalName, ingredients)) {
-          displayName = creativeName
+        const creativeContent = await generateAICreativeContent(tempRecipe, ingredients)
+        displayName = creativeContent.creativeName
+        story = creativeContent.flavorStory
+
+        if (displayName !== tempRecipe.originalName) {
           console.log(`🎨 创意命名成功: "${tempRecipe.originalName}" → "${displayName}"`)
         }
-      } catch (nameError) {
-        console.warn('创意命名失败，使用原菜名:', nameError)
-      }
-
-      // 生成风味故事
-      let story = ''
-      try {
-        story = await generateFlavorStory(tempRecipe, ingredients)
-      } catch (storyError) {
-        console.warn('生成风味故事失败:', storyError)
+      } catch (creativeError) {
+        console.warn('生成创意内容失败，使用原菜名和默认故事:', creativeError)
         story = `这道${dishType.split('/')[0]}融合了${ingredients.slice(0, 3).join('、')}的独特风味，是一次创新的美食尝试。`
       }
 
       // 构建完整的Recipe对象
       const aiGeneratedRecipe: Recipe = {
         ...tempRecipe,
-        displayName: displayName, // 使用验证后的创意名或原菜名
+        displayName: displayName,
         story: story,
         matchScore: 0.7,
         recommendationReason: `AI根据您的食材智能推荐${dishType}`
@@ -798,7 +927,7 @@ export const testAIConnection = async (): Promise<boolean> => {
 
   try {
     const testPrompt = '请回复"AI连接测试成功"。不要多说其他话。'
-    const response = await callZhipuAI(testPrompt)
+    const response = await callZhipuAI(testPrompt, 1) // 只重试一次
 
     if (response.includes('成功')) {
       console.log('🎉 AI连接测试成功！')

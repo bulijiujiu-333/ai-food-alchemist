@@ -26,6 +26,7 @@ const enhanceRecipeWithAI = async (
   selectedIngredients: string[]
 ): Promise<AIEnhancementResult> => {
   try {
+    // 并行调用，但AI服务内部会合并为一次调用
     const [creativeName, flavorStory] = await Promise.all([
       generateCreativeName(recipe, selectedIngredients),
       generateFlavorStory(recipe, selectedIngredients)
@@ -265,12 +266,9 @@ const calculateIngredientMatch = (recipe: Recipe, selectedIngredients: string[])
           }
         }
 
-        // 对AI生成的菜谱进行创意命名增强
-        const aiResponse = await enhanceRecipeWithAI(aiRecipe, selectedIngredients)
+        // 注意：这里不再调用enhanceRecipeWithAI，因为generateAIRecipeFromIngredients已经包含了创意内容
         return {
           ...aiRecipe,
-          displayName: aiResponse.displayName || aiRecipe.originalName,
-          story: aiResponse.story || aiRecipe.story,
           aiEnhanced: true,
           recommendationReason: 'AI根据您的食材创新生成（无高匹配传统菜谱）'
         }
