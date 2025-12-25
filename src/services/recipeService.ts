@@ -20,16 +20,45 @@ const getDefaultPreferences = (): UserPreferences => ({
   preferredDifficulty: '中等'
 })
 
+// ==================== 菜品类型推断函数 ====================
+const inferDishTypeFromRecipe = (recipe: Recipe): string => {
+  const name = recipe.originalName || ''
+
+  //  简单直接的判断
+  if (name.includes('炖') || name.includes('汤') || name.includes('煲')) {
+    return '汤品/炖品'
+  }
+  if (name.includes('凉拌') || name.includes('沙拉')) {
+    return '凉拌/沙拉'
+  }
+  if (name.includes('蒸')) {
+    return '蒸菜'
+  }
+  if (name.includes('烤') || name.includes('煎') || name.includes('炸')) {
+    return '烤/煎'
+  }
+  if (name.includes('炒')) {
+    return '炒菜'
+  }
+
+  // 默认：炒菜
+  return '炒菜'
+}
+
 // ==================== AI增强函数 ====================
 const enhanceRecipeWithAI = async (
   recipe: Recipe,
   selectedIngredients: string[]
 ): Promise<AIEnhancementResult> => {
   try {
-    // 并行调用，但AI服务内部会合并为一次调用
+    // 推断菜品类型
+    const dishType = inferDishTypeFromRecipe(recipe)
+    console.log(`🎯 推断菜品类型: ${dishType} (基于菜名: ${recipe.originalName})`)
+
+    // 传递dishType参数
     const [creativeName, flavorStory] = await Promise.all([
-      generateCreativeName(recipe, selectedIngredients),
-      generateFlavorStory(recipe, selectedIngredients)
+      generateCreativeName(recipe, selectedIngredients, dishType),  // 🆕 传dishType
+      generateFlavorStory(recipe, selectedIngredients, dishType)    // 🆕 传dishType
     ])
 
     return {
@@ -266,7 +295,6 @@ const calculateIngredientMatch = (recipe: Recipe, selectedIngredients: string[])
           }
         }
 
-        // 注意：这里不再调用enhanceRecipeWithAI，因为generateAIRecipeFromIngredients已经包含了创意内容
         return {
           ...aiRecipe,
           aiEnhanced: true,
@@ -382,7 +410,7 @@ const generateRecommendationReason = (
   return reasons.length > 0 ? reasons.join('，') : '为您推荐'
 }
 
-// ==================== 新增：高级AI推荐函数 ====================
+// ==================== 高级AI推荐函数 ====================
 export const getAIRecipeRecommendation = async (
   userPreferences: UserPreferences,
   selectedIngredients: string[]
@@ -391,7 +419,7 @@ export const getAIRecipeRecommendation = async (
   return await getRecipeRecommendation(userPreferences, selectedIngredients)
 }
 
-// ==================== 其他服务函数（完全不变） ====================
+// ==================== 其他服务函数 ====================
 export const getRecipeByIdService = async (id: string): Promise<Recipe | null> => {
   const recipe = recipes.find(r => r.id === id)
   return recipe || null

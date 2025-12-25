@@ -7,10 +7,10 @@
         <span class="back-icon">←</span>
         <span>返回</span>
       </button>
-      
+
       <h1 class="page-title">菜谱详情</h1>
-      
-      <button 
+
+      <button
         @click="toggleFavorite"
         class="favorite-header-btn"
         :class="{ 'active': isFavorite }"
@@ -42,7 +42,7 @@
         <div class="title-section">
           <h2 class="display-name">{{ recipe.displayName }}</h2>
           <p class="original-name">「{{ recipe.originalName }}」</p>
-          
+
           <div class="recipe-meta">
             <span v-if="recipe.cookingTime" class="meta-item">
               <span class="meta-icon">⏱️</span>
@@ -93,8 +93,8 @@
           <span class="ingredients-count">({{ recipe.ingredients.length }}种)</span>
         </h3>
         <div class="ingredients-list">
-          <div 
-            v-for="(ingredient, index) in recipe.ingredients" 
+          <div
+            v-for="(ingredient, index) in recipe.ingredients"
             :key="index"
             class="ingredient-item"
             :style="{ '--delay': index * 0.1 + 's' }"
@@ -113,8 +113,8 @@
           <span class="steps-count">({{ recipe.steps.length }}步)</span>
         </h3>
         <div class="steps-list">
-          <div 
-            v-for="(step, index) in recipe.steps" 
+          <div
+            v-for="(step, index) in recipe.steps"
             :key="index"
             class="step-item"
           >
@@ -132,15 +132,15 @@
           <span class="section-icon">📊</span>
           风味分析
         </h3>
-        
+
         <!-- 如果雷达图组件可用，显示雷达图和文本 -->
         <div v-if="flavorRadarAvailable" class="flavor-combined">
           <div class="flavor-radar-container">
             <FlavorRadar :data="recipe.flavorProfile" />
           </div>
           <div class="flavor-text-stats">
-            <div 
-              v-for="(value, key) in recipe.flavorProfile" 
+            <div
+              v-for="(value, key) in recipe.flavorProfile"
               :key="key"
               class="flavor-stat-item"
             >
@@ -149,7 +149,7 @@
                 <span class="flavor-value">{{ value }}/5</span>
               </div>
               <div class="bar-container">
-                <div 
+                <div
                   class="bar-fill"
                   :style="{
                     width: `${(value / 5) * 100}%`,
@@ -160,15 +160,15 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 如果雷达图组件不可用，只显示文本 -->
         <div v-else class="flavor-text-only">
           <div class="flavor-hint">
             <p>📈 风味雷达图正在制作中，敬请期待...</p>
           </div>
           <div class="flavor-preview">
-            <div 
-              v-for="(value, key) in recipe.flavorProfile" 
+            <div
+              v-for="(value, key) in recipe.flavorProfile"
               :key="key"
               class="flavor-bar-item"
             >
@@ -177,7 +177,7 @@
                 <span class="flavor-value">{{ value }}/5</span>
               </div>
               <div class="bar-container">
-                <div 
+                <div
                   class="bar-fill"
                   :style="{
                     width: `${(value / 5) * 100}%`,
@@ -228,7 +228,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRecipeStore } from '@/stores/recipe'
 import { getRecipeByIdService } from '@/services/recipeService'
-import FlavorRadar from '@/components/FlavorRadar.vue' // ✅ 修复：同步导入
+import FlavorRadar from '@/components/FlavorRadar.vue' // 修复：同步导入
 import type { Recipe, FlavorProfile } from '@/types/recipe'
 
 const route = useRoute()
@@ -239,7 +239,7 @@ const recipeStore = useRecipeStore()
 const recipe = ref<Recipe | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
-const flavorRadarAvailable = ref(true) // ✅ 修复：设为true，因为组件存在
+const flavorRadarAvailable = ref(true) // 修复：设为true，因为组件存在
 
 // 风味标签映射
 const flavorLabels: Record<keyof FlavorProfile, string> = {
@@ -284,12 +284,12 @@ const getFlavorColor = (key: string): string => {
   return flavorColors[key as keyof FlavorProfile] || '#666'
 }
 
-// ✅ 修复：已移除错误的动态导入代码，改为同步导入
+// 修复：已移除错误的动态导入代码，改为同步导入
 
 // 加载菜谱数据
 const loadRecipe = async () => {
   const recipeId = route.params.id as string
-  
+
   if (!recipeId) {
     error.value = '菜谱ID无效'
     loading.value = false
@@ -299,16 +299,16 @@ const loadRecipe = async () => {
   try {
     loading.value = true
     error.value = null
-    
+
     // 先检查store中是否有这个菜谱
     const storeRecipe = recipeStore.historyRecipes.find(r => r.id === recipeId)
-    
+
     if (storeRecipe) {
       recipe.value = storeRecipe
     } else {
       // 调用B同学的API获取菜谱详情
       const fetchedRecipe = await getRecipeByIdService(recipeId)
-      
+
       if (fetchedRecipe) {
         recipe.value = fetchedRecipe
         // 添加到store的历史记录
@@ -961,20 +961,20 @@ watch(() => route.params.id, () => {
   .detail-header {
     padding: 12px 15px;
   }
-  
+
   .display-name {
     font-size: 24px;
   }
-  
+
   .recipe-meta {
     gap: 10px;
   }
-  
+
   .meta-item {
     padding: 6px 12px;
     font-size: 13px;
   }
-  
+
   .description-section,
   .story-section,
   .ingredients-section,
@@ -984,43 +984,43 @@ watch(() => route.params.id, () => {
     padding: 20px;
     margin-bottom: 30px;
   }
-  
+
   .ingredients-list {
     grid-template-columns: 1fr;
   }
-  
+
   .action-buttons {
     flex-direction: column;
   }
-  
+
   .step-item {
     gap: 15px;
   }
-  
+
   .step-number {
     width: 32px;
     height: 32px;
     font-size: 14px;
   }
-  
+
   /* 风味分析响应式 */
   .flavor-combined {
     gap: 20px;
   }
-  
+
   .flavor-radar-container {
     height: 200px;
   }
-  
+
   .flavor-text-stats {
     gap: 12px;
   }
-  
+
   .flavor-name {
     font-size: 14px;
     min-width: 35px;
   }
-  
+
   .bar-container {
     height: 8px;
   }

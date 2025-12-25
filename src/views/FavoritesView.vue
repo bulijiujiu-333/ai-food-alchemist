@@ -1,12 +1,12 @@
 <template>
   <div class="favorites-container">
-    <!-- 顶部导航栏 - 移除了清空按钮 -->
+    <!-- 顶部导航栏  -->
     <div class="header">
       <button @click="goBack" class="back-btn">
         <van-icon name="arrow-left" size="20" />
       </button>
       <h1>我的收藏</h1>
-      <!-- 移除 header-actions 部分 -->
+
     </div>
 
     <!-- 收藏列表 -->
@@ -61,14 +61,14 @@
               <p class="original-name">{{ recipe.originalName }}</p>
             </div>
             <div class="card-actions">
-              <button 
+              <button
                 @click.stop="toggleFavorite(recipe)"
                 class="favorite-action-btn"
                 :title="isFavorite(recipe.id) ? '取消收藏' : '收藏'"
               >
-                <van-icon 
-                  name="star" 
-                  size="20" 
+                <van-icon
+                  name="star"
+                  size="20"
                   :color="isFavorite(recipe.id) ? '#FFD700' : '#CCCCCC'"
                 />
               </button>
@@ -94,7 +94,7 @@
             <div class="ingredients-preview">
               <div class="ingredients-label">主要食材：</div>
               <div class="ingredients-tags">
-                <span 
+                <span
                   v-for="(ingredient, index) in getIngredientsPreview(recipe.ingredients)"
                   :key="index"
                   class="ingredient-tag"
@@ -111,15 +111,15 @@
             <div class="flavor-preview" v-if="recipe.flavorProfile">
               <div class="flavor-label">风味特点：</div>
               <div class="flavor-bars">
-                <div 
+                <div
                   v-for="(value, key) in getTopFlavors(recipe.flavorProfile, 3)"
                   :key="key"
                   class="flavor-bar"
                 >
                  <span class="flavor-name">{{ getFlavorLabel(String(key)) }}</span>
                   <div class="bar-container">
-                    <div 
-                      class="bar-fill" 
+                    <div
+                      class="bar-fill"
                       :style="{ width: `${(value / 5) * 100}%` }"
                       :class="`flavor-${key}`"
                     ></div>
@@ -191,7 +191,7 @@ const filteredFavorites = computed(() => {
 
   // 应用筛选
   if (filters.value.length > 0) {
-    result = result.filter(recipe => 
+    result = result.filter(recipe =>
       recipe.category?.some(cat => filters.value.includes(cat))
     )
   }
@@ -203,8 +203,8 @@ const filteredFavorites = computed(() => {
       break
     case 'difficulty':
       const difficultyOrder = { '简单': 1, '中等': 2, '困难': 3 }
-      result.sort((a, b) => 
-        (difficultyOrder[a.difficulty as keyof typeof difficultyOrder] || 0) - 
+      result.sort((a, b) =>
+        (difficultyOrder[a.difficulty as keyof typeof difficultyOrder] || 0) -
         (difficultyOrder[b.difficulty as keyof typeof difficultyOrder] || 0)
       )
       break
@@ -230,7 +230,7 @@ const categories = computed(() => {
 })
 
 const totalCookingTime = computed(() => {
-  return favorites.value.reduce((total, recipe) => 
+  return favorites.value.reduce((total, recipe) =>
     total + (recipe.cookingTime || 0), 0
   )
 })
@@ -377,7 +377,7 @@ watch(
       background-color: rgba(0, 0, 0, 0.05);
     }
   }
-  
+
   /* 移除 header-actions 样式 */
 }
 
@@ -719,7 +719,7 @@ watch(
         border-radius: 50%;
         animation: sparkle 2s infinite;
       }
-      
+
       // 简化版：只显示几个固定位置的sparkle
       .sparkle:nth-child(1) { left: 20%; top: 30%; animation-delay: 0s; }
       .sparkle:nth-child(2) { left: 70%; top: 60%; animation-delay: 0.5s; }
@@ -797,7 +797,7 @@ watch(
 @media (max-width: 768px) {
   .header {
     padding: 16px 15px;
-    
+
     h1 {
       font-size: 16px;
     }
@@ -809,7 +809,7 @@ watch(
 
   .favorites-stats {
     padding: 15px;
-    
+
     .stat-item {
       .stat-value {
         font-size: 24px;
@@ -820,7 +820,7 @@ watch(
   .filters-section {
     flex-direction: column;
     align-items: stretch;
-    
+
     .sort-options {
       .sort-select {
         width: 100%;
@@ -832,11 +832,11 @@ watch(
     .card-header {
       padding: 15px 15px 10px;
     }
-    
+
     .card-content {
       padding: 0 15px 15px;
     }
-    
+
     .card-footer {
       padding: 12px 15px;
     }
@@ -845,7 +845,7 @@ watch(
   .empty-actions {
     flex-direction: column;
     width: 100%;
-    
+
     button {
       width: 100%;
     }
